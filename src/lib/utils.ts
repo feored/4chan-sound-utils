@@ -29,3 +29,11 @@ export function get_file_type(file_name: String): "image" | "video" | "audio" | 
     }
     return "unknown";
 }
+
+export function get_extension(file_name: String): string | null {
+    const parts = file_name.split('.');
+    if (parts.length > 1) {
+        return parts.pop()?.toLowerCase() || null;
+    }
+    return null;
+}

@@ -34,6 +34,10 @@
 		"vite": "^7.0.4"
 	},
 	"dependencies": {
+		"@ffmpeg/core": "^0.12.10",
+		"@ffmpeg/core-mt": "^0.12.10",
+		"@ffmpeg/ffmpeg": "^0.12.15",
+		"@ffmpeg/util": "^0.12.2",
 		"@lucide/svelte": "^0.536.0",
 		"byte-size": "^9.0.1"
 	}
