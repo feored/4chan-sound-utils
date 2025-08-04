@@ -9,7 +9,9 @@
 	import { get } from 'svelte/store';
 
 	let ffmpeg: FFmpeg;
+	let ffmpeg_version: 'mt' | 'st' = $state('mt'); // Default to multithreaded version
 	let ffmpeg_loaded = $state(false);
+	let ffmpeg_loading = $state(false);
 
 	let videoEl;
 	let dlLink;
@@ -18,12 +20,6 @@
 	let is_loading = $state(false);
 	let is_finished = $state(false);
 	let current_file: File | null = $state(null);
-
-	onMount(async () => {
-		await load_ffmpeg();
-		console.log('FFmpeg loaded.');
-		ffmpeg_loaded = true;
-	});
 
 	$effect(() => {
 		if (ffmpeg_loaded && current_file) {
@@ -53,21 +49,24 @@
 	}
 
 	async function load_ffmpeg() {
+		ffmpeg_loading = true;
 		const baseURL = 'https://unpkg.com/@ffmpeg/core-mt@0.12.6/dist/esm';
 		ffmpeg = new FFmpeg();
 		ffmpeg.on('log', ({ message }) => {
 			console.log(message);
 		});
 		ffmpeg.on('progress', ({ progress, time }) => {
-			console.log('progress: ' + progress);
-			console.log('time: ' + time);
 			loading_message = 'Merging files... ' + (progress * 100).toFixed(2) + '%';
 		});
-		console.log('Loading ffmpeg-core.js');
+		let version = ffmpeg_version == 'mt' ? 'multithreaded' : 'singlethreaded';
+		console.log(`Loading FFmpeg ${version}...`);
 		await ffmpeg.load({
-			coreURL: `http://localhost:5173/multithreaded/ffmpeg-core.js`,
-			wasmURL: `http://localhost:5173/multithreaded/ffmpeg-core.wasm`
+			coreURL: `http://localhost:5173/${version}/ffmpeg-core.js`,
+			wasmURL: `http://localhost:5173/${version}/ffmpeg-core.wasm`
 		});
+		console.log('FFmpeg loaded successfully.');
+		ffmpeg_loading = false;
+		ffmpeg_loaded = true;
 	}
 
 	async function ffmpeg_merge(
@@ -76,16 +75,10 @@
 		sound_blob: Blob,
 		sound_name: string
 	) {
-		console.log('Merging files:', source_name, sound_name);
 		await ffmpeg.writeFile(source_name, await fetchFile(source_blob));
-		console.log('Source file written to ffmpeg:', source_name);
-		console.log('Writing sound file to ffmpeg:', sound_name);
 		await ffmpeg.writeFile(sound_name, await fetchFile(sound_blob));
-		console.log('Sound file written to ffmpeg:', sound_name);
 		await ffmpeg.exec(['-i', source_name, '-i', sound_name, '-preset', 'ultrafast', 'output.mp4']);
-		console.log('FFmpeg merge command executed.');
 		const data = await ffmpeg.readFile('output.mp4');
-		console.log('done');
 		const dataA = data as Uint8Array;
 		videoEl.src = URL.createObjectURL(new Blob([dataA], { type: 'video/mp4' }));
 		dlLink.href = videoEl.src;
@@ -112,13 +105,6 @@
 				return response.blob();
 			})
 			.then((blob) => {
-				// const a = document.createElement('a');
-				// a.href = URL.createObjectURL(blob);
-				// a.download = url;
-				// document.body.appendChild(a);
-				// a.click();
-				// document.body.removeChild(a);
-				// toast.push('Sound downloaded successfully.');
 				sound_blob = blob;
 			})
 			.catch((error) => {
@@ -132,18 +118,37 @@
 <article>
 	<h3>Merger</h3>
 	{#if !ffmpeg_loaded}
-		<p>Loading FFmpeg...<span class="loader"></span></p>
+		{#if !ffmpeg_loading}
+			<form>
+				<label><b>Choose which version of FFmpeg to use</b></label>
+				<p>
+					The multithreaded version is an order of magnitude faster but only recommended on firefox
+					as it seems to hang on chromium-based browsers.
+				</p>
+				<label>
+					<input type="radio" name="ffmpeg-version" value="mt" bind:group={ffmpeg_version} />
+					Multi-thread
+				</label>
+				<label>
+					<input type="radio" name="ffmpeg-version" value="st" bind:group={ffmpeg_version} />
+					Single-thread
+				</label>
+				<button onclick={() => load_ffmpeg()}>Load FFmpeg</button>
+			</form>
+		{:else}
+			<p>Loading FFmpeg... <span class="loader"></span></p>
+		{/if}
 	{:else}
 		<Filepicker bind:current_file />
 		{#if current_file}
 			{#if !is_loading}
-				<button style="width:fit-content" onclick={() => merge()}>Merge</button>
+				<button onclick={() => merge()}>Merge</button>
 			{:else}
 				<p>{loading_message} <span class="loader"></span></p>
 			{/if}
 			<div style="display: {is_finished ? 'contents' : 'none'}">
 				<p>Output</p>
-				<video id="media" bind:this={videoEl} controls />
+				<video bind:this={videoEl} controls />
 				<p>
 					<a bind:this={dlLink} download="{get_file_name(current_file.name) + '_merged'}.mp4"
 						><button>Download</button></a
@@ -174,7 +179,11 @@
 			transform: rotate(360deg);
 		}
 	}
-	#media {
-		max-width: 25%;
+	video {
+		max-width: 50%;
+	}
+
+	button {
+		width: fit-content;
 	}
 </style>
