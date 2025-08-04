@@ -27,7 +27,7 @@
 />
 {#if files}
 	{#each Array.from(files) as file}
-		<p>Filesize: {byteSize(file.size, { units: 'iec' })}</p>
+		<p>Original size: {byteSize(file.size, { units: 'iec' })}</p>
 		<div id="media">
 			{#if get_file_type(file.name) === 'video'}
 				<!-- svelte-ignore a11y_media_has_caption -->

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Filepicker from '$lib/components/filepicker.svelte';
+	import byteSize from 'byte-size';
 	import { ffmpeg } from '$lib/ffmpeg.svelte';
 	import { onMount } from 'svelte';
 	import { get_url, get_file_type, get_extension, get_file_name } from '$lib/utils';
@@ -17,6 +18,7 @@
 
 	let videoEl = $state<HTMLVideoElement | null>(null);
 	let dlLink = $state<HTMLAnchorElement | null>(null);
+	let final_video: Blob = $state<Blob>(new Blob()); // Final merged video blob
 
 	let loading_message = $state('');
 	let is_loading = $state(false);
@@ -63,7 +65,14 @@
 			name: current_file.name,
 			blob: current_file
 		};
-		await ffmpeg_merge(video, sound);
+		try {
+			await ffmpeg_merge(video, sound);
+		} catch (error) {
+			toast.push(`FFmpeg error: ${error}`);
+			is_loading = false;
+			return;
+		}
+		toast.push('FFmpeg finished.');
 		is_loading = false;
 		is_finished = true;
 	}
@@ -81,17 +90,13 @@
 		if (tune !== 'none') {
 			base_command.push('-tune', tune);
 		}
+		base_command.push('-pix_fmt:v', 'yuv420p');
 		base_command.push('output.mp4');
 		console.log('Running ffmpeg command:', 'ffmpeg ' + base_command.join(' '));
 		await ffmpeg.exec(base_command);
 		const data = await ffmpeg.readFile('output.mp4');
-		const dataA = data as Uint8Array;
-		if (videoEl && dlLink) {
-			videoEl.src = URL.createObjectURL(new Blob([dataA], { type: 'video/mp4' }));
-			dlLink.href = videoEl.src;
-		} else {
-			toast.push('Error: Video element or download link not found.');
-		}
+		const dataArray = data as Uint8Array;
+		final_video = new Blob([dataArray], { type: 'video/mp4' });
 	}
 
 	async function download_sound(file_name: string) {
@@ -126,7 +131,13 @@
 </script>
 
 <article>
-	<h3>Merger</h3>
+	<header>
+		<h3>Merger</h3>
+		<small>
+			Downloads the linked sound file and merges it back into the video (or image). Useful for
+			archiving.
+		</small>
+	</header>
 	<Filepicker bind:current_file />
 	{#if current_file}
 		<form>
@@ -163,11 +174,12 @@
 			<p>{loading_message} <span class="loader"></span></p>
 		{/if}
 		<div style="display: {is_finished ? 'blocks' : 'none'}">
-			<p>Output</p>
-			<video bind:this={videoEl} controls />
+			<p>Final size: {byteSize(final_video.size, { units: 'iec' })}</p>
+			<video src={URL.createObjectURL(final_video)} controls />
 			<p>
-				<a bind:this={dlLink} download="{get_file_name(current_file.name) + '_merged'}.mp4"
-					><button>Download</button></a
+				<a
+					href={URL.createObjectURL(final_video)}
+					download="{get_file_name(current_file.name) + '_merged'}.mp4"><button>Download</button></a
 				>
 			</p>
 		</div>

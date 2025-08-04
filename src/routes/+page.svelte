@@ -1,13 +1,18 @@
 <script lang="ts">
 	import { is_ffmpeg_ready } from '$lib/ffmpeg.svelte';
-	import FFmpeg_loader from '$lib/components/ffmpeg_loader.svelte';
+	import { init_ffmpeg } from '$lib/ffmpeg.svelte';
 	import Merger from '$lib/components/merger.svelte';
+	import { onMount } from 'svelte';
+
+	onMount(() => {
+		init_ffmpeg();
+	});
 </script>
 
 <main>
 	{#if is_ffmpeg_ready()}
 		<Merger />
 	{:else}
-		<FFmpeg_loader />
+		<p>Loading FFmpeg...</p>
 	{/if}
 </main>
