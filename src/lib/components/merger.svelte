@@ -144,7 +144,7 @@
 			<label><b>FFmpeg settings</b></label>
 			<fieldset>
 				<legend>Preset</legend>
-				<p>Slower will yield higher quality encodes. Warning: May run out of memory.</p>
+				<p>Slower will yield higher quality encodes.</p>
 				<div class="options">
 					{#each ['veryslow', 'slow', 'medium', 'fast', 'veryfast', 'ultrafast'] as p}
 						<label>
