@@ -5,8 +5,7 @@
 	import { onMount } from 'svelte';
 	import { get_url, get_file_type, get_extension, get_file_name } from '$lib/utils';
 	import { toast } from '@zerodevx/svelte-toast';
-	import { fetchFile, toBlobURL } from '@ffmpeg/util';
-	import { get } from 'svelte/store';
+	import { fetchFile } from '@ffmpeg/util';
 
 	type Stream = {
 		name: string;
@@ -16,8 +15,6 @@
 	let preset: 'veryslow' | 'slow' | 'medium' | 'fast' | 'veryfast' | 'ultrafast' = $state('fast'); // Default preset for ffmpeg
 	let tune: 'none' | 'film' | 'animation' | 'stillimage' = $state('none'); // Default tune for ffmpeg
 
-	let videoEl = $state<HTMLVideoElement | null>(null);
-	let dlLink = $state<HTMLAnchorElement | null>(null);
 	let final_video: Blob = $state<Blob>(new Blob()); // Final merged video blob
 
 	let loading_message = $state('');

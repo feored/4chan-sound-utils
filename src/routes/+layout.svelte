@@ -6,10 +6,7 @@
 </script>
 
 <header class="my-4">
-	<hgroup>
-		<h3>4chan sound utils</h3>
-		<h6>v{version}</h6>
-	</hgroup>
+	<h3>4chan sound utils</h3>
 </header>
 <slot />
 <SvelteToast />
