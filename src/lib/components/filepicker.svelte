@@ -44,6 +44,6 @@
 
 <style>
 	#media {
-		max-width: 25%;
+		max-width: 50%;
 	}
 </style>

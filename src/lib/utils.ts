@@ -31,12 +31,9 @@ export function get_file_type(file_name: String): "image" | "video" | "audio" | 
 }
 
 export function get_file_name(file_name: String): string {
-    let final = file_name;
-    const found = file_name.match(sound_re);
-    if (found && found.groups && found.groups.url) {
-        final.replace(found.groups.url, '');
-    }
-    return final.trim();
+    let sound_removed = file_name.replaceAll(/\[.+?\]/g, "");
+    let extension_removed = sound_removed.split('.')[0]
+    return extension_removed.trim()
 }
 
 export function get_extension(file_name: String): string | null {
