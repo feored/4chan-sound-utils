@@ -4,23 +4,22 @@
 	const video_formats = ['video/mp4', 'video/webm'];
 	const image_formats = ['image/jpeg', 'image/png', 'image/gif'];
 
-	let { files = $bindable() } = $props();
-
-	let img = $state();
-	let vid = $state();
-
+	let { current_file = $bindable() } = $props();
+	let files = $state();
 	$effect(() => {
-		if (files) {
-			// Note that `files` is of type `FileList`, not an Array:
-			// https://developer.mozilla.org/en-US/docs/Web/API/FileList
-			console.log(files);
+		if (files && files.length > 0) {
+			current_file = files[0];
+		} else {
+			current_file = null;
 		}
 	});
+	let img = $state();
+	let vid = $state();
 </script>
 
 <label for="source_media">Upload a video or image.</label>
 <input
-	accept={video_formats + ', ' + image_formats}
+	accept={[...video_formats, ...image_formats].join(',')}
 	bind:files
 	id="source_media"
 	name="source_media"
@@ -45,6 +44,6 @@
 
 <style>
 	#media {
-		max-width: 50%;
+		max-width: 25%;
 	}
 </style>

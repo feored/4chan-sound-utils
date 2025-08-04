@@ -30,6 +30,15 @@ export function get_file_type(file_name: String): "image" | "video" | "audio" | 
     return "unknown";
 }
 
+export function get_file_name(file_name: String): string {
+    let final = file_name;
+    const found = file_name.match(sound_re);
+    if (found && found.groups && found.groups.url) {
+        final.replace(found.groups.url, '');
+    }
+    return final.trim();
+}
+
 export function get_extension(file_name: String): string | null {
     const parts = file_name.split('.');
     if (parts.length > 1) {

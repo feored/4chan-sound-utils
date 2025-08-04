@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Filepicker from '$lib/components/filepicker.svelte';
 	import { onMount } from 'svelte';
-	import { get_url, get_file_type, get_extension } from '$lib/utils';
+	import { get_url, get_file_type, get_extension, get_file_name } from '$lib/utils';
 	import { toast } from '@zerodevx/svelte-toast';
 	import { FFmpeg } from '@ffmpeg/ffmpeg';
 
@@ -9,19 +9,27 @@
 	import { get } from 'svelte/store';
 
 	let ffmpeg: FFmpeg;
-	let videoEl: HTMLVideoElement;
+	let ffmpeg_loaded = $state(false);
+
+	let videoEl;
+	let dlLink;
+
+	let loading_message = $state('');
 	let is_loading = $state(false);
-	let files = $state<FileList>();
-	let current_file = $derived.by(() => {
-		if (files && files.length > 0) {
-			return files[0];
-		}
-		return null;
-	});
+	let is_finished = $state(false);
+	let current_file: File | null = $state(null);
 
 	onMount(async () => {
 		await load_ffmpeg();
 		console.log('FFmpeg loaded.');
+		ffmpeg_loaded = true;
+	});
+
+	$effect(() => {
+		if (ffmpeg_loaded && current_file) {
+			is_loading = false;
+			is_finished = false;
+		}
 	});
 
 	async function merge() {
@@ -30,15 +38,18 @@
 			return;
 		}
 		is_loading = true;
+		loading_message = 'Downloading sound...';
 		const sound_blob = await download_sound();
 		if (!sound_blob) {
 			toast.push('No sound blob to merge with.');
 			is_loading = false;
 			return;
 		}
+		loading_message = 'Launching ffmpeg...';
 		let sound_name = 'test.' + get_extension(get_url(current_file.name));
 		await ffmpeg_merge(current_file, current_file.name, sound_blob, sound_name);
 		is_loading = false;
+		is_finished = true;
 	}
 
 	async function load_ffmpeg() {
@@ -50,11 +61,12 @@
 		ffmpeg.on('progress', ({ progress, time }) => {
 			console.log('progress: ' + progress);
 			console.log('time: ' + time);
+			loading_message = 'Merging files... ' + (progress * 100).toFixed(2) + '%';
 		});
 		console.log('Loading ffmpeg-core.js');
 		await ffmpeg.load({
-			coreURL: `http://localhost:5173/ffmpeg-core.js`,
-			wasmURL: `http://localhost:5173/ffmpeg-core.wasm`
+			coreURL: `http://localhost:5173/multithreaded/ffmpeg-core.js`,
+			wasmURL: `http://localhost:5173/multithreaded/ffmpeg-core.wasm`
 		});
 	}
 
@@ -76,6 +88,7 @@
 		console.log('done');
 		const dataA = data as Uint8Array;
 		videoEl.src = URL.createObjectURL(new Blob([dataA], { type: 'video/mp4' }));
+		dlLink.href = videoEl.src;
 	}
 
 	async function download_sound() {
@@ -118,24 +131,34 @@
 
 <article>
 	<h3>Merger</h3>
-	<Filepicker bind:files />
-	{#if current_file}
-		<div style="display:flex">
-			<button onclick={() => merge()}>Merge</button>
-			{#if is_loading}
-				<span class="loader"></span>
+	{#if !ffmpeg_loaded}
+		<p>Loading FFmpeg...<span class="loader"></span></p>
+	{:else}
+		<Filepicker bind:current_file />
+		{#if current_file}
+			{#if !is_loading}
+				<button style="width:fit-content" onclick={() => merge()}>Merge</button>
+			{:else}
+				<p>{loading_message} <span class="loader"></span></p>
 			{/if}
-		</div>
+			<div style="display: {is_finished ? 'contents' : 'none'}">
+				<p>Output</p>
+				<video id="media" bind:this={videoEl} controls />
+				<p>
+					<a bind:this={dlLink} download="{get_file_name(current_file.name) + '_merged'}.mp4"
+						><button>Download</button></a
+					>
+				</p>
+			</div>
+		{/if}
 	{/if}
-	<p>output</p>
-	<video bind:this={videoEl} controls />
 </article>
 
 <style>
 	.loader {
-		width: 48px;
-		height: 48px;
-		border: 5px solid #fff;
+		width: 24px;
+		height: 24px;
+		border: 2px solid #fff;
 		border-bottom-color: transparent;
 		border-radius: 50%;
 		display: inline-block;
@@ -150,5 +173,8 @@
 		100% {
 			transform: rotate(360deg);
 		}
+	}
+	#media {
+		max-width: 25%;
 	}
 </style>
