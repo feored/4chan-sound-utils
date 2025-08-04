@@ -1,0 +1,1 @@
+from node_modules\@ffmpeg\core-mt\dist\esm
