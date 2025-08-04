@@ -80,9 +80,10 @@
 		let base_command = ['-i', video.name, '-i', sound.name];
 		if (get_file_type(video.name) == 'image') {
 			base_command.unshift('-loop', '1', '-r', '1');
+			base_command.push('-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2'); // fix images where width or height is odd
 			base_command.push('-shortest', '-r', '1');
 		}
-		base_command.push('-map', '0:v', '-map', '1:a');
+		base_command.push('-map', '0:v', '-map', '1:a'); // Map video from the first input and audio from the second input
 		base_command.push('-preset', preset);
 		if (tune !== 'none') {
 			base_command.push('-tune', tune);
@@ -174,9 +175,8 @@
 			<p>Final size: {byteSize(final_video.size, { units: 'iec' })}</p>
 			<video src={URL.createObjectURL(final_video)} controls />
 			<p>
-				<a
-					href={URL.createObjectURL(final_video)}
-					download="{get_file_name(current_file.name) + '_merged'}.mp4"><button>Download</button></a
+				<a href={URL.createObjectURL(final_video)} download="{get_file_name(current_file.name)}.mp4"
+					><button>Download</button></a
 				>
 			</p>
 		</div>
