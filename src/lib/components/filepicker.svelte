@@ -13,8 +13,6 @@
 			current_file = null;
 		}
 	});
-	let img = $state();
-	let vid = $state();
 </script>
 
 <label for="source_media">Upload a video or image.</label>
@@ -36,7 +34,7 @@
 					Your browser does not support the video tag.
 				</video>
 			{:else if get_file_type(file.name) === 'image'}
-				<img bind:this={img} src={URL.createObjectURL(file)} alt="Selected image" />
+				<img src={URL.createObjectURL(file)} alt="Selected image" />
 			{/if}
 		</div>
 	{/each}

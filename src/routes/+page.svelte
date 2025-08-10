@@ -1,7 +1,7 @@
-<script lang="ts">
-	import { is_ffmpeg_ready } from '$lib/ffmpeg.svelte';
-	import { init_ffmpeg } from '$lib/ffmpeg.svelte';
-	import Merger from '$lib/components/merger.svelte';
+<script>
+	import { is_ffmpeg_loaded, init_ffmpeg } from '$lib/ffmpeg/ffmpeg.svelte';
+	import Splitter from '$lib/components/splitter/splitter.svelte';
+	import Merger from '$lib/components/merger/merger.svelte';
 	import { onMount } from 'svelte';
 
 	onMount(() => {
@@ -10,7 +10,11 @@
 </script>
 
 <main>
-	{#if is_ffmpeg_ready()}
+	{#if is_ffmpeg_loaded()}
+		<small><i>FFmpeg loaded.</i></small>
+		<hr />
+		<Splitter />
+		<hr />
 		<Merger />
 	{:else}
 		<p>Loading FFmpeg...</p>
