@@ -7,14 +7,14 @@
 	import { toast } from '@zerodevx/svelte-toast';
 
 	let current_file: File | null = $state(null);
-	let video_progress = $state(0);
-	let vid: HTMLVideoElement | null = null;
+	let vid: HTMLVideoElement | null = $state(null);
 
-	$effect(() => {
-		if (vid) {
-			vid.currentTime = video_progress * vid.duration;
-		}
-	});
+	function on_seek(progress: number) {
+		if (!vid) return;
+		if (isNaN(vid.duration)) return;
+		vid.currentTime = progress * vid.duration;
+	}
+
 	async function get_sound_extension(stream: Stream): Promise<string | null> {
 		set_ffmpeg_busy(true);
 		await ffmpeg.writeFile(stream.name, await fetchFile(stream.blob));
@@ -79,7 +79,7 @@
 	<Filepicker bind:current_file accept_image={false} show_preview={false} />
 
 	{#if current_file}
-		<Seekbar bind:progress={video_progress} />
+		<Seekbar {on_seek} />
 		<video bind:this={vid} controls src={URL.createObjectURL(current_file)}>
 			Your browser does not support the video tag.
 		</video>

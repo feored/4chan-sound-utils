@@ -1,11 +1,9 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	interface SeekbarProps {
-		progress?: number;
-	}
-	let { progress = $bindable() }: SeekbarProps = $props();
+	type SeekbarProps = {
+		on_seek?: (progress: number) => void;
+	};
 
-	onMount(() => {});
+	let { on_seek }: SeekbarProps = $props();
 
 	let seekbar: HTMLDivElement | null = $state(null);
 	let handle: HTMLDivElement | null = $state(null);
@@ -23,9 +21,10 @@
 		const handle_width = handle.getBoundingClientRect().width;
 		const seekbar_width = seekbar_rect.width - handle_width;
 
-		progress = (event.clientX - seekbar_rect.left) / seekbar_width;
+		let progress = (event.clientX - seekbar_rect.left) / seekbar_width;
 		let bar_progress = Math.max(0, Math.min(100, progress * 100)); // Clamp between 0 and 100
 		handle.style.left = `${bar_progress}%`;
+		on_seek?.(progress);
 	}
 </script>
 
