@@ -11,14 +11,19 @@
 	let vid: HTMLVideoElement | null = $state(null);
 	let playing = $state(false);
 	let progress: number = $state(0);
+	let duration: number = $state(0);
 	let current_time: number = $state(0);
 
 	function on_seek(progress: number) {
 		if (!vid) return;
 		if (isNaN(vid.duration)) return;
 		vid.currentTime = progress * vid.duration;
-		console.log(`Seeking to ${vid.currentTime} seconds (${progress * 100}%)`);
 	}
+
+	ondurationchange = (_event: Event) => {
+		if (!vid) return;
+		duration = vid.duration;
+	};
 
 	function toggle_play() {
 		if (!vid) return;
@@ -92,8 +97,6 @@
 		let extension = await get_sound_extension({ name: current_file.name, blob: current_file });
 		console.log('Sound extension:', extension);
 	}
-
-	$inspect(playing);
 </script>
 
 <article>
@@ -115,13 +118,14 @@
 					<Play />
 				{/if}
 			</button>
-			<Seekbar {on_seek} master_progress={progress} {current_time} />
+			<Seekbar {on_seek} master_progress={progress} {current_time} {duration} />
 		</section>
 		<video
 			bind:this={vid}
 			src={URL.createObjectURL(current_file)}
 			onpause={() => (playing = false)}
 			onplay={() => (playing = true)}
+			{ondurationchange}
 			{ontimeupdate}
 		>
 			Your browser does not support the video tag.

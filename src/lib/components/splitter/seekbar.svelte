@@ -2,10 +2,11 @@
 	type SeekbarProps = {
 		master_progress?: number;
 		current_time?: number;
+		duration?: number;
 		on_seek?: (progress: number) => void;
 	};
 
-	let { master_progress, current_time, on_seek }: SeekbarProps = $props();
+	let { master_progress, current_time, duration, on_seek }: SeekbarProps = $props();
 
 	let seekbar: HTMLDivElement | null = $state(null);
 	let handle: HTMLDivElement | null = $state(null);
@@ -62,17 +63,36 @@
 		}}
 		onmousedown={mousedown}
 		onmouseup={() => {
-			console.log('Seekbar released');
 			seeking = false;
 		}}
 	>
 		<div bind:this={handle} id="handle">
-			<div id="timer" class="flash">{format_time(current_time)}</div>
+			<div id="timer" class="timer dynamic unselectable">{format_time(current_time)}</div>
+		</div>
+		<div class="flex width">
+			<div class="timer static width">{format_time(0)}</div>
+			<div class="timer static width end">{format_time(duration)}</div>
 		</div>
 	</div>
 </div>
 
 <style>
+	.end {
+		text-align: end;
+	}
+	.static {
+		transform: translate(0rem, -1.25rem);
+	}
+
+	.dynamic {
+		transform: translate(0.5rem, 1rem);
+	}
+
+	.timer {
+		font-family: var(--ft-mono);
+		font-size: 0.85rem;
+	}
+
 	#parent {
 		width: 100%;
 		position: relative;
@@ -85,6 +105,15 @@
 		cursor: ew-resize;
 		height: 100%;
 		position: absolute;
+	}
+
+	.unselectable {
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		-khtml-user-select: none;
+		-moz-user-select: none;
+		-ms-user-select: none;
+		user-select: none;
 	}
 
 	#seekbar {
