@@ -5,14 +5,40 @@
 	import { ffmpeg, set_ffmpeg_busy, is_ffmpeg_busy, listen } from '$lib/ffmpeg/ffmpeg.svelte';
 	import { fetchFile } from '@ffmpeg/util';
 	import { toast } from '@zerodevx/svelte-toast';
+	import { Play, Pause, Square } from '@lucide/svelte';
 
 	let current_file: File | null = $state(null);
 	let vid: HTMLVideoElement | null = $state(null);
+	let playing = $state(false);
+	let progress: number = $state(0);
+	let current_time: number = $state(0);
 
 	function on_seek(progress: number) {
 		if (!vid) return;
 		if (isNaN(vid.duration)) return;
 		vid.currentTime = progress * vid.duration;
+		console.log(`Seeking to ${vid.currentTime} seconds (${progress * 100}%)`);
+	}
+
+	function toggle_play() {
+		if (!vid) return;
+		if (!playing) {
+			vid.play();
+		} else {
+			vid.pause();
+		}
+	}
+
+	function ontimeupdate(_event: Event) {
+		if (!vid) return;
+		progress = vid.currentTime / vid.duration;
+		current_time = vid.currentTime;
+	}
+
+	function stop() {
+		if (!vid) return;
+		vid.pause();
+		vid.currentTime = 0;
 	}
 
 	async function get_sound_extension(stream: Stream): Promise<string | null> {
@@ -66,6 +92,8 @@
 		let extension = await get_sound_extension({ name: current_file.name, blob: current_file });
 		console.log('Sound extension:', extension);
 	}
+
+	$inspect(playing);
 </script>
 
 <article>
@@ -79,8 +107,23 @@
 	<Filepicker bind:current_file accept_image={false} show_preview={false} />
 
 	{#if current_file}
-		<Seekbar {on_seek} />
-		<video bind:this={vid} controls src={URL.createObjectURL(current_file)}>
+		<section id="seekbar_container">
+			<button onclick={stop}><Square /></button>
+			<button onclick={toggle_play}
+				>{#if playing}<Pause />
+				{:else}
+					<Play />
+				{/if}
+			</button>
+			<Seekbar {on_seek} master_progress={progress} {current_time} />
+		</section>
+		<video
+			bind:this={vid}
+			src={URL.createObjectURL(current_file)}
+			onpause={() => (playing = false)}
+			onplay={() => (playing = true)}
+			{ontimeupdate}
+		>
 			Your browser does not support the video tag.
 		</video>
 		{#if is_ffmpeg_busy()}
@@ -97,6 +140,11 @@
 </article>
 
 <style>
+	#seekbar_container {
+		display: flex;
+		gap: 0.5rem;
+	}
+
 	video {
 		width: 100%;
 		height: auto;
