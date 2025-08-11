@@ -13,6 +13,10 @@ export function is_ffmpeg_loaded(): boolean {
     return ffmpeg_loaded;
 }
 
+export function set_ffmpeg_busy(busy: boolean) {
+    ffmpeg_busy = busy;
+}
+
 export function is_ffmpeg_busy(): boolean {
     return ffmpeg_busy;
 }

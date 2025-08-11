@@ -2,9 +2,15 @@
 	import Filepicker from '$lib/components/filepicker.svelte';
 	import FfmpegExportSettings from './ffmpeg_export_settings.svelte';
 	import byteSize from 'byte-size';
-	import { ffmpeg, get_ffmpeg_parameters, listen } from '$lib/ffmpeg/ffmpeg.svelte';
+	import {
+		ffmpeg,
+		get_ffmpeg_parameters,
+		set_ffmpeg_busy,
+		is_ffmpeg_busy,
+		listen
+	} from '$lib/ffmpeg/ffmpeg.svelte';
 	import type { Stream, ExportSettings } from '$lib/ffmpeg/ffmpeg_types';
-	import { get_url, get_extension, get_file_name } from '$lib/utils';
+	import { get_url, get_file_name } from '$lib/utils';
 	import { toast } from '@zerodevx/svelte-toast';
 	import { fetchFile } from '@ffmpeg/util';
 	import { type LogEvent, type ProgressEvent } from '@ffmpeg/ffmpeg';
@@ -86,12 +92,15 @@
 	}
 
 	async function ffmpeg_merge(video: Stream, sound: Stream) {
+		set_ffmpeg_busy(true);
 		await ffmpeg.writeFile(video.name, await fetchFile(video.blob));
 		await ffmpeg.writeFile(sound.name, await fetchFile(sound.blob));
 		let command = get_ffmpeg_parameters(video, sound, export_settings);
 		console.log('Running ffmpeg command:', 'ffmpeg ' + command.join(' '));
 		await ffmpeg.exec(command);
 		const data = await ffmpeg.readFile(`output.${export_settings.output_format}`);
+		set_ffmpeg_busy(false);
+
 		const data_array = data as Uint8Array;
 		final_video = new Blob([data_array], { type: `video/${export_settings.output_format}` });
 	}
@@ -136,11 +145,15 @@
 		<br />
 		{#if merge_state === 'ready'}
 			<FfmpegExportSettings bind:export_settings />
-			<button onclick={() => merge()}>Merge</button>
+			{#if is_ffmpeg_busy()}
+				<p>FFmpeg is busy. Please wait...</p>
+			{:else}
+				<button onclick={() => merge()}>Merge</button>
+			{/if}
 		{:else if merge_state === 'loading'}
 			<article>
 				<p>{loading_message} <span class="loader"></span></p>
-				<pre>{ffmpeg_message}</pre>
+				<code>{ffmpeg_message}</code>
 			</article>
 		{:else if merge_state === 'finished'}
 			<div>
