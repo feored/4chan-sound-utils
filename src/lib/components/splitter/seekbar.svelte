@@ -3,22 +3,10 @@
 		master_progress?: number;
 		current_time?: number;
 		duration?: number;
-		start_percentage?: number;
-		end_percentage?: number;
 		on_seek?: (progress: number) => void;
 	};
 
-	let {
-		master_progress,
-		current_time,
-		start_percentage,
-		end_percentage,
-		duration,
-		on_seek
-	}: SeekbarProps = $props();
-
-	let start: HTMLDivElement | null = $state(null);
-	let end: HTMLDivElement | null = $state(null);
+	let { master_progress, current_time, duration, on_seek }: SeekbarProps = $props();
 
 	let seekbar: HTMLDivElement | null = $state(null);
 	let handle: HTMLDivElement | null = $state(null);
@@ -29,8 +17,8 @@
 			return '0:00.000';
 		}
 		const minutes = Math.floor(seconds / 60);
-		const secs = Math.round(seconds % 60);
-		const milliseconds = Math.round((seconds % 1) * 1000);
+		const secs = Math.floor(seconds % 60);
+		const milliseconds = Math.floor((seconds % 1) * 100);
 		return `${minutes}:${secs < 10 ? '0' : ''}${secs}.${milliseconds < 10 ? '0' : ''}${milliseconds}`;
 	}
 
@@ -63,33 +51,6 @@
 		handle.style.left = `${bar_progress}%`;
 		on_seek?.(progress);
 	}
-
-	function drag_bracket(event: MouseEvent, isLeft: boolean) {
-		console.log('Hover');
-		if (!seekbar || !start || !end) return;
-		// if (isLeft && start_seeking === false) return;
-		// if (!isLeft && end_seeking === false) return;
-		console.log('Client Left:', event.clientX);
-		const bracket = isLeft ? start : end;
-		const seekbar_rect = seekbar.getBoundingClientRect();
-		const seekbar_width = seekbar_rect.width;
-
-		let progress = (event.clientX - seekbar_rect.left) / seekbar_width;
-		let bar_progress = Math.max(0, Math.min(100, progress * 100)); // Clamp between 0 and 100
-		console.log('Setting bracket position', bar_progress);
-		bracket.style.left = `${bar_progress}%`;
-	}
-
-	$effect(() => {
-		set_bracket_percentage(true, start_percentage ?? 0);
-		set_bracket_percentage(false, end_percentage ?? 100);
-	});
-
-	function set_bracket_percentage(isLeft: boolean, percentage: number) {
-		if (!seekbar || !start || !end) return;
-		const bracket = isLeft ? start : end;
-		bracket.style.left = `${percentage}%`;
-	}
 </script>
 
 <div id="parent">
@@ -109,46 +70,18 @@
 			<div id="timer" class="timer dynamic unselectable">{format_time(current_time)}</div>
 		</div>
 		<div class="flex width">
-			<div class="timer static width unselectable">{format_time(0)}</div>
-			<div class="timer static width unselectable end">{format_time(duration)}</div>
+			<div class="timer static width">{format_time(0)}</div>
+			<div class="timer static width end">{format_time(duration)}</div>
 		</div>
 	</div>
-	<div class="left-bracket" bind:this={start}></div>
-	<div class="right-bracket" bind:this={end}></div>
 </div>
 
 <style>
-	.right-bracket {
-		position: absolute;
-		left: 100%;
-		top: 0;
-		width: 0.5rem;
-		height: 100%;
-		border-right: 0.25rem solid var(--subtle);
-		border-top: 0.25rem solid var(--subtle);
-		border-bottom: 0.25rem solid var(--subtle);
-		border-top-right-radius: 0.25rem;
-		border-bottom-right-radius: 0.25rem;
-		transform: translate(-0.5rem, -0.25rem);
-	}
-	.left-bracket {
-		position: absolute;
-		left: 0;
-		top: 0;
-		width: 0.5rem;
-		height: 100%;
-		border-left: 0.25rem solid var(--subtle);
-		border-top: 0.25rem solid var(--subtle);
-		border-bottom: 0.25rem solid var(--subtle);
-		border-top-left-radius: 0.25rem;
-		border-bottom-left-radius: 0.25rem;
-		transform: translate(0rem, -0.25rem);
-	}
 	.end {
 		text-align: end;
 	}
 	.static {
-		transform: translate(0rem, 3rem);
+		transform: translate(0rem, -1.25rem);
 	}
 
 	.dynamic {
@@ -163,7 +96,6 @@
 	#parent {
 		width: 100%;
 		position: relative;
-		height: 3rem;
 	}
 
 	#handle {

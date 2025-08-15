@@ -31,7 +31,7 @@ export async function init_ffmpeg() {
 
 
 export function get_ffmepg_mp4_parameters(video_input: Stream, audio_input: Stream, settings: x264ExportSettings): string[] {
-    let base_command = ['-i', `"${video_input.name}"`, '-i', `"${audio_input.name}"`];
+    let base_command = ['-i', video_input.name, '-i', audio_input.name];
     if (get_file_type(video_input.name) == 'image') {
         base_command.unshift('-loop', '1', '-r', '1');
         base_command.push('-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2'); // fix images where width or height is odd
@@ -50,7 +50,7 @@ export function get_ffmepg_mp4_parameters(video_input: Stream, audio_input: Stre
 }
 
 export function get_ffmpeg_webm_parameters(video_input: Stream, audio_input: Stream, settings: VP8ExportSettings): string[] {
-    let base_command = ['-i', `"${video_input.name}"`, '-i', `"${audio_input.name}"`,
+    let base_command = ['-i', video_input.name, '-i', audio_input.name,
         '-c:v', 'libvpx', '-b:v', settings.bitrate, '-c:a', 'libvorbis', '-b:a', '256k'];
     base_command.push('output.webm');
     return base_command;
