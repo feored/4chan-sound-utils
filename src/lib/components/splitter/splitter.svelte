@@ -2,17 +2,60 @@
 	import Filepicker from '$lib/components/filepicker.svelte';
 	import Seekbar from '$lib/components/splitter/seekbar.svelte';
 	import { type Stream } from '$lib/ffmpeg/ffmpeg_types';
+	import { format_ffmpeg_time } from '$lib/utils';
 	import { ffmpeg, set_ffmpeg_busy, is_ffmpeg_busy, listen } from '$lib/ffmpeg/ffmpeg.svelte';
 	import { fetchFile } from '@ffmpeg/util';
 	import { toast } from '@zerodevx/svelte-toast';
-	import { Play, Pause, Square } from '@lucide/svelte';
+	import { type LogEvent, type ProgressEvent } from '@ffmpeg/ffmpeg';
+	import { Play, Pause, Square, Volume2, VolumeOff } from '@lucide/svelte';
 
 	let current_file: File | null = $state(null);
 	let vid: HTMLVideoElement | null = $state(null);
+	let looping = $state(false);
+	let sound_enabled = $state(true);
 	let playing = $state(false);
 	let progress: number = $state(0);
 	let duration: number = $state(0);
 	let current_time: number = $state(0);
+
+	let start_percentage: number = $state(0);
+	let end_percentage: number = $state(100);
+
+	let final_stream: Stream = $state({
+		name: '',
+		blob: new Blob()
+	});
+
+	let loading_message = $state('');
+	let ffmpeg_message = $state('');
+
+	function listen_ffmpeg_message(event: LogEvent) {
+		let formatted_message = `[${event.type}]: ${event.message}`;
+		console.log(formatted_message);
+		ffmpeg_message = formatted_message;
+	}
+
+	function listen_ffmpeg_progress(event: ProgressEvent) {
+		const progress = event.progress * 100; // Convert to percentage
+		loading_message = `Splitting video... ${progress.toFixed(2)}%`;
+	}
+
+	function onstartendinput() {
+		if (start_percentage > end_percentage) {
+			end_percentage = start_percentage + 5;
+		} else if (end_percentage < start_percentage) {
+			start_percentage = end_percentage - 5;
+		}
+
+		if (!vid) return;
+		if (progress < start_percentage / 100) {
+			progress = start_percentage / 100;
+			vid.currentTime = progress * vid.duration;
+		} else if (progress > end_percentage / 100) {
+			progress = end_percentage / 100;
+			vid.currentTime = progress * vid.duration;
+		}
+	}
 
 	function on_seek(progress: number) {
 		if (!vid) return;
@@ -38,18 +81,28 @@
 		if (!vid) return;
 		progress = vid.currentTime / vid.duration;
 		current_time = vid.currentTime;
+		if (progress < start_percentage / 100) {
+			vid.currentTime = (start_percentage / 100) * vid.duration;
+		} else if (progress > end_percentage / 100) {
+			if (!looping) {
+				vid.pause();
+				vid.currentTime = (end_percentage / 100) * vid.duration;
+			} else {
+				vid.currentTime = (start_percentage / 100) * vid.duration;
+			}
+		}
 	}
 
 	function stop() {
 		if (!vid) return;
 		vid.pause();
-		vid.currentTime = 0;
+		vid.currentTime = (start_percentage / 100) * vid.duration;
 	}
 
 	async function get_sound_extension(stream: Stream): Promise<string | null> {
 		set_ffmpeg_busy(true);
 		await ffmpeg.writeFile(stream.name, await fetchFile(stream.blob));
-		let command = `-loglevel error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 ${stream.name} -o output.txt`;
+		let command = `-select_streams a:0 -show_entries stream=codec_name -of csv=p=0 ${stream.name} -o output.txt`;
 		await ffmpeg.ffprobe(command.split(' '));
 		const data = await ffmpeg.readFile('output.txt');
 		set_ffmpeg_busy(false);
@@ -62,17 +115,14 @@
 		return utf8_decoder.decode(data_array).trim();
 	}
 
-	async function upload_file(): Promise<string | null> {
+	async function upload_file(file: File): Promise<string | null> {
 		// Placeholder for file upload logic
 		// This should return the URL of the uploaded file
-		if (!current_file) {
-			toast.push('No file selected for upload.');
-			return null;
-		}
+
 		const form_data = new FormData();
 		form_data.append('reqtype', 'fileupload');
-		form_data.append('fileToUpload', current_file);
-		console.log('Uploading file:', current_file.name);
+		form_data.append('fileToUpload', file);
+		console.log('Uploading file:', file.name);
 
 		try {
 			const response = await fetch('https://catbox.moe/user/api.php', {
@@ -89,13 +139,120 @@
 		}
 	}
 
+	async function extract_audio(start_time: number, trim_duration: number) {
+		if (!current_file) {
+			return;
+		}
+		set_ffmpeg_busy(true);
+		console.log('Extracting audio from video:', current_file.name);
+		await ffmpeg.writeFile(current_file.name, await fetchFile(current_file));
+		console.log('wrote file to ffmpeg:', current_file.name);
+		let command = [
+			'-y',
+			'-ss',
+			format_ffmpeg_time(start_time),
+			'-i',
+			current_file.name,
+			'-map',
+			'0:a:0',
+			'-ss',
+			format_ffmpeg_time(start_time),
+			'-t',
+			format_ffmpeg_time(trim_duration),
+			'-c:a',
+			'libvorbis',
+			'-b:a',
+			'192k',
+			'output.ogg'
+		];
+		await ffmpeg.exec(command);
+		console.log('Executed ffmpeg command: ffmpeg', command.join(' '));
+		const audio_blob = await ffmpeg.readFile(`output.ogg`);
+		console.log('Read audio blob from ffmpeg');
+		set_ffmpeg_busy(false);
+		const blob = new Blob([audio_blob], { type: `audio/ogg` });
+		return {
+			name: 'output.ogg',
+			blob: blob
+		};
+	}
+
+	async function process_video(start_time: number, trim_duration: number) {
+		if (!current_file) {
+			return;
+		}
+		console.log('Processing video:', current_file.name);
+		set_ffmpeg_busy(true);
+		await ffmpeg.writeFile(current_file.name, await fetchFile(current_file));
+		console.log('wrote file to ffmpeg:', current_file.name);
+
+		// https://superuser.com/a/704118
+		let command = [
+			'-y',
+			'-ss',
+			format_ffmpeg_time(start_time),
+			'-i',
+			current_file.name,
+			'-map',
+			'0:v:0',
+			'-ss',
+			format_ffmpeg_time(start_time),
+			'-c:v',
+			'libvpx',
+			'-b:v',
+			'2M',
+			'-t',
+			format_ffmpeg_time(trim_duration),
+			'output.webm'
+		];
+		await ffmpeg.exec(command);
+		console.log('Executed ffmpeg command: ffmpeg ', command.join(' '));
+		const video_blob = await ffmpeg.readFile(`output.webm`);
+		console.log('Read video blob from ffmpeg');
+		set_ffmpeg_busy(false);
+		return new Blob([video_blob], { type: `video/webm` });
+	}
+
 	async function split() {
+		console.log('Splitting audio from video...');
+		listen(true, listen_ffmpeg_message, listen_ffmpeg_progress);
 		if (!current_file) {
 			toast.push('No file selected.');
 			return;
 		}
-		let extension = await get_sound_extension({ name: current_file.name, blob: current_file });
-		console.log('Sound extension:', extension);
+		const start_time = (start_percentage / 100) * duration;
+		const trim_duration = (end_percentage / 100 - start_percentage / 100) * duration;
+
+		let audio_stream = await extract_audio(start_time, trim_duration);
+		if (!audio_stream) {
+			toast.push('Failed to extract audio from video.');
+			return;
+		}
+		console.log('Audio extracted');
+		let audio_file = new File([audio_stream.blob], audio_stream.name, {
+			type: audio_stream.blob.type
+		});
+		let audio_url = await upload_file(audio_file);
+		if (!audio_url) {
+			toast.push('Failed to upload audio.');
+			return;
+		}
+		audio_url = encodeURIComponent(audio_url);
+		console.log('Audio uploaded:', audio_url);
+		let video_blob = await process_video(start_time, trim_duration);
+		if (!video_blob) {
+			toast.push('Failed to process video.');
+			return;
+		}
+		console.log('Video processed');
+		final_stream = {
+			name: current_file.name.replace(/\.[^/.]+$/, '') + `[sound=${audio_url}].webm`,
+			blob: video_blob
+		};
+		listen(false, listen_ffmpeg_message, listen_ffmpeg_progress);
+
+		//let extension = await get_sound_extension({ name: current_file.name, blob: current_file });
+		//console.log('Sound extension:', extension);
 	}
 </script>
 
@@ -108,19 +265,59 @@
 		</small>
 	</header>
 	<Filepicker bind:current_file accept_image={false} show_preview={false} />
-
 	{#if current_file}
-		<section id="seekbar_container">
-			<button onclick={stop}><Square /></button>
-			<button onclick={toggle_play}
-				>{#if playing}<Pause />
-				{:else}
-					<Play />
-				{/if}
-			</button>
-			<Seekbar {on_seek} master_progress={progress} {current_time} {duration} />
+		<hr />
+		<br />
+		<section class="controls-container">
+			<div class="controls">
+				<button onclick={stop}><Square /></button>
+				<button onclick={toggle_play}
+					>{#if playing}<Pause />
+					{:else}
+						<Play />
+					{/if}
+				</button>
+			</div>
+			<div class="controls">
+				<button onclick={() => (looping = !looping)}
+					>{#if looping}Loop{:else}Play Once{/if}</button
+				>
+				<button onclick={() => (sound_enabled = !sound_enabled)}>
+					{#if sound_enabled}<Volume2 />{:else}<VolumeOff />
+					{/if}
+				</button>
+			</div>
+		</section>
+		<section>
+			<small>Trim Start/End</small>
+			<input
+				step="0.1"
+				oninput={onstartendinput}
+				type="range"
+				min="0"
+				max="100"
+				bind:value={start_percentage}
+			/>
+			<input
+				step="0.1"
+				oninput={onstartendinput}
+				type="range"
+				min="0"
+				max="100"
+				bind:value={end_percentage}
+			/>
+			<Seekbar
+				{on_seek}
+				master_progress={progress}
+				{current_time}
+				{duration}
+				{start_percentage}
+				{end_percentage}
+			/>
 		</section>
 		<video
+			loop={looping}
+			muted={!sound_enabled}
 			bind:this={vid}
 			src={URL.createObjectURL(current_file)}
 			onpause={() => (playing = false)}
@@ -130,21 +327,31 @@
 		>
 			Your browser does not support the video tag.
 		</video>
-		{#if is_ffmpeg_busy()}
-			<p>FFmpeg is busy processing another task.</p>
-		{:else}
-			<button
-				onclick={() => {
-					split();
-				}}>Split</button
-			>
-			<button onclick={() => upload_file()}> Upload</button>
-		{/if}
+		<button
+			onclick={() => {
+				split();
+			}}>Split</button
+		>
+		<article>
+			<p>{loading_message} <span class="loader"></span></p>
+			<code>{ffmpeg_message}</code>
+		</article>
+
+		<a
+			href={URL.createObjectURL(final_stream.blob)}
+			download={final_stream.name}
+			title="Download processedvideo"><button>Download</button></a
+		>
 	{/if}
 </article>
 
 <style>
-	#seekbar_container {
+	.controls-container {
+		display: flex;
+		justify-content: space-between;
+	}
+
+	.controls {
 		display: flex;
 		gap: 0.5rem;
 	}
