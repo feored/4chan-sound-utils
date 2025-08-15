@@ -1,12 +1,14 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { on } from 'svelte/events';
 
 	interface DraggableProps {
 		progress: number;
 		drag_object: Snippet;
 		seekbar: HTMLDivElement;
+		on_seek?: (progress: number) => void;
 	}
-	let { progress = $bindable(), drag_object, seekbar }: DraggableProps = $props();
+	let { progress, drag_object, seekbar, on_seek }: DraggableProps = $props();
 
 	let dragging = $state(false);
 	let self: HTMLDivElement | null = $state(null);
@@ -19,36 +21,40 @@
 		document.body.style.cursor = 'ew-resize;';
 	}
 
-	function onmouseleave() {
-		document.body.style.cursor = 'auto';
-		dragging = false;
-	}
-
 	function onmousedown() {
 		dragging = true;
 		//onclick?.();
 	}
 
-	function onmouseup() {
+	function onmouseup(event: MouseEvent) {
+		if (!dragging || !self || !seekbar) return;
 		dragging = false;
 	}
 
 	function onmousemove(event: MouseEvent) {
-		let progress = (event.clientX - seekbar_rect.left) / seekbar_width;
-		let bar_progress = Math.max(0, Math.min(100, progress * 100)); // Clamp between 0 and 100
-		self?.style.left = `${bar_progress}%`;
+		if (!dragging || !self || !seekbar) return;
+		let bar_progress = (event.clientX - seekbar_rect.left) / seekbar_width;
+		progress = Math.max(0, Math.min(1, bar_progress)); // Clamp between 0 and 100
+		on_seek?.(progress);
 	}
 </script>
 
+<svelte:document {onmouseup} {onmousemove} />
 <div
 	bind:this={self}
 	class="draggable"
-	style="left: {progress * 100}%"
+	style:left="{progress * 100}%"
 	{onmouseenter}
-	{onmouseleave}
 	{onmousedown}
-	{onmouseup}
 	{onmousemove}
 >
 	{@render drag_object()}
 </div>
+
+<style>
+	.draggable {
+		position: absolute;
+		cursor: ew-resize;
+		height: 100%;
+	}
+</style>

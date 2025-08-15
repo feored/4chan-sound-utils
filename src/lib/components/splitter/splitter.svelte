@@ -60,6 +60,7 @@
 	function on_seek(progress: number) {
 		if (!vid) return;
 		if (isNaN(vid.duration)) return;
+		console.log('Seeking to:', progress);
 		vid.currentTime = progress * vid.duration;
 	}
 
