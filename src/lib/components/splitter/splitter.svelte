@@ -266,9 +266,8 @@
 	<Filepicker bind:current_file accept_image={false} show_preview={false} />
 	{#if current_file}
 		<hr />
-		<VideoControls {video} {stop} {duration} />
-		<br />
 		<section>
+			<VideoControls {video} {stop} {duration} />
 			<Seekbar
 				{on_seek}
 				{progress}

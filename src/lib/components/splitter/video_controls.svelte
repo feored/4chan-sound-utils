@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Play, Pause, Square, Volume2, VolumeOff } from '@lucide/svelte';
+	import { Play, Pause, Square, Volume2, VolumeOff, Infinity, Repeat1 } from '@lucide/svelte';
 	import { format_ffmpeg_time } from '$lib/utils';
 
 	interface VideoControlsProps {
@@ -44,7 +44,7 @@
 	});
 </script>
 
-<section class="controls-container">
+<div class="controls-container">
 	<div class="controls">
 		<button onclick={stop}><Square /></button>
 		<button onclick={toggle_play}
@@ -53,20 +53,21 @@
 				<Play />
 			{/if}
 		</button>
-		<span class="timer-text">
+		<div class="timer-text flash accent">
 			{format_ffmpeg_time(current_time, false)} / {format_ffmpeg_time(duration, false)}
-		</span>
+		</div>
 	</div>
 	<div class="controls">
-		<button onclick={() => (looping = !looping)}
-			>{#if looping}Loop{:else}Play Once{/if}</button
+		<button class:bd-accent={looping} onclick={() => (looping = !looping)}>
+			{#if looping}<Infinity />{:else}<Repeat1 />
+			{/if}</button
 		>
-		<button onclick={() => (sound_enabled = !sound_enabled)}>
+		<button class:bd-accent={sound_enabled} onclick={() => (sound_enabled = !sound_enabled)}>
 			{#if sound_enabled}<Volume2 />{:else}<VolumeOff />
 			{/if}
 		</button>
 	</div>
-</section>
+</div>
 
 <style>
 	.controls-container {
@@ -81,5 +82,9 @@
 	.timer-text {
 		font-family: var(--ft-mono);
 		font-size: 0.85rem;
+	}
+
+	.controls > button {
+		margin: 1rem 0;
 	}
 </style>
