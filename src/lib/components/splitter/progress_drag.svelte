@@ -12,12 +12,12 @@
 	let dragging = $state(false);
 	let self: HTMLDivElement | null = $state(null);
 
-	function onmousedown(event: MouseEvent) {
+	function onmousedown() {
 		dragging = true;
 		document.body.style.cursor = 'ew-resize';
 	}
 
-	function onmouseup(event: MouseEvent) {
+	function onmouseup() {
 		if (!dragging || !self || !seekbar) return;
 		dragging = false;
 		document.body.style.cursor = 'default';
@@ -28,6 +28,17 @@
 		const seekbar_rect = seekbar.getBoundingClientRect();
 		let bar_progress =
 			(event.clientX - seekbar_rect.left) /
+			(seekbar_rect.width - self.getBoundingClientRect().width);
+		progress = Math.max(0, Math.min(1, bar_progress)); // Clamp between 0 and 1
+		on_seek?.(progress);
+	}
+
+	function ontouchmove(event: TouchEvent) {
+		if (!dragging || !self || !seekbar) return;
+		const seekbar_rect = seekbar.getBoundingClientRect();
+		let touch = event.touches[0];
+		let bar_progress =
+			(touch.clientX - seekbar_rect.left) /
 			(seekbar_rect.width - self.getBoundingClientRect().width);
 		progress = Math.max(0, Math.min(1, bar_progress)); // Clamp between 0 and 1
 		on_seek?.(progress);
@@ -49,6 +60,10 @@
 	bind:this={self}
 	class="draggable {seek_type}"
 	style:left={display_progress()}
+	ontouchstart={onmousedown}
+	ontouchend={onmouseup}
+	{ontouchmove}
+	ontouchcancel={onmouseup}
 	{onmouseenter}
 	{onmousedown}
 	{onmousemove}
