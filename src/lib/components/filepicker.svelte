@@ -35,7 +35,7 @@
 </script>
 
 <div>
-	<div class="flash accent">
+	<div class="flash bd-muted bg-accent">
 		<label for="source_media" style="font-weight:bold;">Upload a video or image.</label>
 		<input
 			accept={accepted_formats.join(',')}

@@ -80,6 +80,11 @@
 	function on_seek(progress: number) {
 		if (!video) return;
 		if (isNaN(video.duration)) return;
+		if (progress < video_data.start_progress) {
+			video_data.progress = video_data.start_progress;
+		} else if (progress > video_data.end_progress) {
+			video_data.progress = video_data.end_progress;
+		}
 		video.currentTime = progress * video.duration;
 	}
 

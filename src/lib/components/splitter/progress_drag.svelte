@@ -1,13 +1,13 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
-
+	import { format_ffmpeg_time } from '$lib/utils';
 	interface DraggableProps {
 		progress: number;
+		duration: number;
 		seek_type: 'handle' | 'left_bracket' | 'right_bracket';
 		seekbar: HTMLDivElement;
 		on_seek?: (progress: number) => void;
 	}
-	let { progress, seek_type, seekbar, on_seek }: DraggableProps = $props();
+	let { progress, seek_type, duration, seekbar, on_seek }: DraggableProps = $props();
 
 	let dragging = $state(false);
 	let self: HTMLDivElement | null = $state(null);
@@ -34,8 +34,11 @@
 	}
 
 	function display_progress() {
+		if (!self || !seekbar) return '0%';
+		const seekbar_rect = seekbar.getBoundingClientRect();
+		let ratio = (seekbar_rect.width - self.getBoundingClientRect().width) / seekbar_rect.width;
 		if (seek_type === 'handle' || seek_type === 'right_bracket') {
-			return `clamp(0%, ${progress * 100}%, calc(100% - ${self ? self.getBoundingClientRect().width : 0}px))`;
+			return `${progress * 100 * ratio}%`;
 		}
 		return `${progress * 100}%`;
 	}
@@ -49,9 +52,22 @@
 	{onmouseenter}
 	{onmousedown}
 	{onmousemove}
-></div>
+>
+	{#if dragging}
+		<div class="p-.5 timer-display timer-text flash accent">
+			{format_ffmpeg_time(progress * duration, false)}
+		</div>
+	{/if}
+</div>
 
 <style>
+	.timer-display {
+		position: absolute;
+		top: 100%;
+		font-family: var(--ft-mono);
+		font-size: 0.85rem;
+		transform: translate(-50%);
+	}
 	.draggable {
 		position: absolute;
 		height: 100%;

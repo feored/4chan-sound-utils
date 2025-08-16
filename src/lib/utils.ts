@@ -60,3 +60,7 @@ export function format_ffmpeg_time(seconds: number, show_hours = true): string {
     }
     return `${hours}:${formatted_time}`;
 }
+
+export function approximately_equal(a: number, b: number, epsilon = 0.0001): boolean {
+    return Math.abs(a - b) < epsilon;
+}

@@ -21,28 +21,24 @@
 			seek_type="left_bracket"
 			{seekbar}
 			on_seek={on_start_seek}
+			duration={video_data.duration}
 		/>
 		<ProgressDrag
 			progress={video_data.end_progress ?? 100}
 			seek_type="right_bracket"
 			{seekbar}
 			on_seek={on_end_seek}
+			duration={video_data.duration}
 		/>
-		<ProgressDrag progress={video_data.progress ?? 0} seek_type="handle" {seekbar} {on_seek} />
+		<ProgressDrag
+			progress={video_data.progress ?? 0}
+			seek_type="handle"
+			{seekbar}
+			{on_seek}
+			duration={video_data.duration}
+		/>
 	</div>
 </div>
-
-{#snippet handle()}
-	<div class="handle"></div>
-{/snippet}
-
-{#snippet left_bracket()}
-	<div class="left_bracket"></div>
-{/snippet}
-
-{#snippet right_bracket()}
-	<div class="right_bracket"></div>
-{/snippet}
 
 <style>
 	.parent {

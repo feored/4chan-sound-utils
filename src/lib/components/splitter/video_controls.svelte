@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Play, Pause, Square, Volume2, VolumeOff, Infinity, Repeat1 } from '@lucide/svelte';
 	import { type VideoData } from '$lib/components/splitter/splitter.svelte';
-	import { format_ffmpeg_time } from '$lib/utils';
+	import { format_ffmpeg_time, approximately_equal } from '$lib/utils';
 
 	interface VideoControlsProps {
 		video: HTMLVideoElement | null;
@@ -19,22 +19,26 @@
 	});
 
 	let playing = $state(false);
-	let looping = $state(false);
+	let looping = $state(true);
 	let sound_enabled = $state(true);
+
+	function set_video_to_start() {
+		if (!video || !video_data) return;
+		video.currentTime = video_data.start_progress * video_data.duration;
+	}
 
 	function stop() {
 		if (!video) return;
 		video.pause();
-		video.currentTime = video_data.start_progress * video_data.duration;
+		set_video_to_start();
 	}
 
-	function toggle_play() {
+	function play() {
 		if (!video) return;
-		if (!playing) {
-			video.play();
-		} else {
-			video.pause();
+		if (video.ended || approximately_equal(video_data.progress, video_data.end_progress)) {
+			set_video_to_start();
 		}
+		video.play();
 	}
 
 	$effect(() => {
@@ -48,12 +52,13 @@
 <div class="controls-container">
 	<div class="controls">
 		<button onclick={stop}><Square /></button>
-		<button onclick={toggle_play}
-			>{#if playing}<Pause />
-			{:else}
+		{#if playing}
+			<button class="bd-accent" onclick={() => video?.pause()}><Pause /></button>
+		{:else}
+			<button onclick={play}>
 				<Play />
-			{/if}
-		</button>
+			</button>
+		{/if}
 		<div class="timer-text flash accent">
 			{format_ffmpeg_time(video_data.current_time, false)} / {format_ffmpeg_time(
 				video_data.duration,
@@ -83,6 +88,7 @@
 		display: flex;
 		gap: 0.5rem;
 	}
+
 	.timer-text {
 		font-family: var(--ft-mono);
 		font-size: 0.85rem;
