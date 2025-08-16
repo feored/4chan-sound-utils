@@ -1,23 +1,20 @@
 <script lang="ts">
 	import { Play, Pause, Square, Volume2, VolumeOff, Infinity, Repeat1 } from '@lucide/svelte';
+	import { type VideoData } from '$lib/components/splitter/splitter.svelte';
 	import { format_ffmpeg_time } from '$lib/utils';
 
 	interface VideoControlsProps {
 		video: HTMLVideoElement | null;
-		duration: number;
-		stop: () => void;
+		video_data: VideoData;
 	}
 
-	let { video, duration, stop }: VideoControlsProps = $props();
+	let { video, video_data }: VideoControlsProps = $props();
 
 	$effect(() => {
 		if (video) {
 			video.addEventListener('play', () => (playing = true));
 			video.addEventListener('pause', () => (playing = false));
 			video.addEventListener('ended', () => (playing = false));
-			video.addEventListener('timeupdate', () => {
-				current_time = video.currentTime;
-			});
 		}
 	});
 
@@ -25,7 +22,11 @@
 	let looping = $state(false);
 	let sound_enabled = $state(true);
 
-	let current_time = $state(0);
+	function stop() {
+		if (!video) return;
+		video.pause();
+		video.currentTime = video_data.start_progress * video_data.duration;
+	}
 
 	function toggle_play() {
 		if (!video) return;
@@ -54,7 +55,10 @@
 			{/if}
 		</button>
 		<div class="timer-text flash accent">
-			{format_ffmpeg_time(current_time, false)} / {format_ffmpeg_time(duration, false)}
+			{format_ffmpeg_time(video_data.current_time, false)} / {format_ffmpeg_time(
+				video_data.duration,
+				false
+			)}
 		</div>
 	</div>
 	<div class="controls">

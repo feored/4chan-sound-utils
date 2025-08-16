@@ -1,3 +1,13 @@
+<script module lang="ts">
+	export interface VideoData {
+		progress: number;
+		current_time: number;
+		duration: number;
+		start_progress: number;
+		end_progress: number;
+	}
+</script>
+
 <script lang="ts">
 	import Filepicker from '$lib/components/filepicker.svelte';
 	import Seekbar from '$lib/components/splitter/seekbar.svelte';
@@ -12,12 +22,14 @@
 
 	let current_file: File | null = $state(null);
 	let video: HTMLVideoElement | null = $state(null);
-	let progress: number = $state(0);
-	let duration: number = $state(0);
-	let current_time: number = $state(0);
 
-	let start_progress: number = $state(0);
-	let end_progress: number = $state(1);
+	let video_data: VideoData = $state({
+		progress: 0,
+		current_time: 0,
+		duration: 0,
+		start_progress: 0,
+		end_progress: 1
+	});
 
 	let final_stream: Stream = $state({
 		name: '',
@@ -39,29 +51,29 @@
 	}
 
 	function on_start_seek(progress: number) {
-		start_progress = progress;
-		on_start_end_seek();
+		video_data.start_progress = progress;
+		bracket_sanity_check();
 	}
 
 	function on_end_seek(progress: number) {
-		end_progress = progress;
-		on_start_end_seek();
+		video_data.end_progress = progress;
+		bracket_sanity_check();
 	}
 
-	function on_start_end_seek() {
-		if (start_progress > end_progress) {
-			end_progress = start_progress + 0.05;
-		} else if (end_progress < start_progress) {
-			start_progress = end_progress - 0.05;
+	function bracket_sanity_check() {
+		if (video_data.start_progress > video_data.end_progress) {
+			video_data.end_progress = video_data.start_progress + 0.05;
+		} else if (video_data.end_progress < video_data.start_progress) {
+			video_data.start_progress = video_data.end_progress - 0.05;
 		}
 
 		if (!video) return;
-		if (progress < start_progress) {
-			progress = start_progress;
-			video.currentTime = progress * video.duration;
-		} else if (progress > end_progress) {
-			progress = end_progress;
-			video.currentTime = progress * video.duration;
+		if (video_data.progress < video_data.start_progress) {
+			video_data.progress = video_data.start_progress;
+			video.currentTime = video_data.progress * video.duration;
+		} else if (video_data.progress > video_data.end_progress) {
+			video_data.progress = video_data.end_progress;
+			video.currentTime = video_data.progress * video.duration;
 		}
 	}
 
@@ -71,53 +83,44 @@
 		video.currentTime = progress * video.duration;
 	}
 
-	ondurationchange = (_event: Event) => {
+	function ondurationchange() {
 		if (!video) return;
-		duration = video.duration;
-	};
-
-	function stop() {
-		if (!video) return;
-		video.pause();
-		video.currentTime = start_progress * video.duration;
+		video_data.duration = video.duration;
 	}
 
 	function ontimeupdate(_event: Event) {
 		if (!video) return;
-		progress = video.currentTime / video.duration;
-		current_time = video.currentTime;
-		if (progress < start_progress) {
-			video.currentTime = start_progress * video.duration;
-		} else if (progress > end_progress) {
+		video_data.progress = video.currentTime / video.duration;
+		video_data.current_time = video.currentTime;
+		if (video_data.progress < video_data.start_progress) {
+			video.currentTime = video_data.start_progress * video.duration;
+		} else if (video_data.progress > video_data.end_progress) {
 			if (!video.loop) {
 				video.pause();
-				video.currentTime = end_progress * video.duration;
+				video.currentTime = video_data.end_progress * video.duration;
 			} else {
-				video.currentTime = start_progress * video.duration;
+				video.currentTime = video_data.start_progress * video.duration;
 			}
 		}
 	}
 
-	async function get_sound_extension(stream: Stream): Promise<string | null> {
-		set_ffmpeg_busy(true);
-		await ffmpeg.writeFile(stream.name, await fetchFile(stream.blob));
-		let command = `-select_streams a:0 -show_entries stream=codec_name -of csv=p=0 ${stream.name} -o output.txt`;
-		await ffmpeg.ffprobe(command.split(' '));
-		const data = await ffmpeg.readFile('output.txt');
-		set_ffmpeg_busy(false);
-		if (!data) {
-			toast.push('Failed to get sound extension.');
-			return null;
-		}
-		const data_array = data as Uint8Array;
-		const utf8_decoder = new TextDecoder(); // utf8 is the default
-		return utf8_decoder.decode(data_array).trim();
-	}
+	// async function get_sound_extension(stream: Stream): Promise<string | null> {
+	// 	set_ffmpeg_busy(true);
+	// 	await ffmpeg.writeFile(stream.name, await fetchFile(stream.blob));
+	// 	let command = `-select_streams a:0 -show_entries stream=codec_name -of csv=p=0 ${stream.name} -o output.txt`;
+	// 	await ffmpeg.ffprobe(command.split(' '));
+	// 	const data = await ffmpeg.readFile('output.txt');
+	// 	set_ffmpeg_busy(false);
+	// 	if (!data) {
+	// 		toast.push('Failed to get sound extension.');
+	// 		return null;
+	// 	}
+	// 	const data_array = data as Uint8Array;
+	// 	const utf8_decoder = new TextDecoder(); // utf8 is the default
+	// 	return utf8_decoder.decode(data_array).trim();
+	// }
 
 	async function upload_file(file: File): Promise<string | null> {
-		// Placeholder for file upload logic
-		// This should return the URL of the uploaded file
-
 		const form_data = new FormData();
 		form_data.append('reqtype', 'fileupload');
 		form_data.append('fileToUpload', file);
@@ -219,8 +222,9 @@
 			toast.push('No file selected.');
 			return;
 		}
-		const start_time = (start_progress / 100) * duration;
-		const trim_duration = (end_progress / 100 - start_progress / 100) * duration;
+		const start_time = (video_data.start_progress / 100) * video_data.duration;
+		const trim_duration =
+			(video_data.end_progress / 100 - video_data.start_progress / 100) * video_data.duration;
 
 		let audio_stream = await extract_audio(start_time, trim_duration);
 		if (!audio_stream) {
@@ -267,17 +271,8 @@
 	{#if current_file}
 		<hr />
 		<section>
-			<VideoControls {video} {stop} {duration} />
-			<Seekbar
-				{on_seek}
-				{progress}
-				{current_time}
-				{duration}
-				{start_progress}
-				{end_progress}
-				{on_start_seek}
-				{on_end_seek}
-			/>
+			<VideoControls {video} {video_data} />
+			<Seekbar {video_data} {on_seek} {on_start_seek} {on_end_seek} />
 		</section>
 		<video
 			bind:this={video}
