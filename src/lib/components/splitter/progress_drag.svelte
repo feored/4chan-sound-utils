@@ -54,13 +54,22 @@
 	{onmousemove}
 >
 	{#if dragging}
-		<div class="p-.5 timer-display timer-text flash accent">
+		<div class="p-.5 timer-display timer-text flash accent unselectable">
 			{format_ffmpeg_time(progress * duration, false)}
 		</div>
 	{/if}
 </div>
 
 <style>
+	.unselectable {
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		-khtml-user-select: none;
+		-moz-user-select: none;
+		-ms-user-select: none;
+		user-select: none;
+		cursor: default;
+	}
 	.timer-display {
 		position: absolute;
 		top: 100%;
@@ -83,6 +92,7 @@
 		border-top-right-radius: var(--bd-radius);
 		border-bottom-right-radius: var(--bd-radius);
 		transform: translate(0rem, -0.25rem);
+		border-color: var(--accent);
 	}
 	.left_bracket {
 		left: 0;
@@ -93,9 +103,10 @@
 		border-top-left-radius: var(--bd-radius);
 		border-bottom-left-radius: var(--bd-radius);
 		transform: translate(-0.25rem, -0.25rem);
+		border-color: var(--accent);
 	}
 	.handle {
 		width: 0.4rem;
-		background-color: var(--accent);
+		background-color: var(--dark-danger);
 	}
 </style>

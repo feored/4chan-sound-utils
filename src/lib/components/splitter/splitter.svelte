@@ -52,26 +52,23 @@
 
 	function on_start_seek(progress: number) {
 		video_data.start_progress = progress;
-		bracket_sanity_check();
-	}
-
-	function on_end_seek(progress: number) {
-		video_data.end_progress = progress;
-		bracket_sanity_check();
-	}
-
-	function bracket_sanity_check() {
 		if (video_data.start_progress > video_data.end_progress) {
 			video_data.end_progress = video_data.start_progress + 0.05;
-		} else if (video_data.end_progress < video_data.start_progress) {
-			video_data.start_progress = video_data.end_progress - 0.05;
 		}
-
 		if (!video) return;
 		if (video_data.progress < video_data.start_progress) {
 			video_data.progress = video_data.start_progress;
 			video.currentTime = video_data.progress * video.duration;
-		} else if (video_data.progress > video_data.end_progress) {
+		}
+	}
+
+	function on_end_seek(progress: number) {
+		video_data.end_progress = progress;
+		if (video_data.end_progress < video_data.start_progress) {
+			video_data.start_progress = video_data.end_progress - 0.05;
+		}
+		if (!video) return;
+		if (video_data.progress > video_data.end_progress) {
 			video_data.progress = video_data.end_progress;
 			video.currentTime = video_data.progress * video.duration;
 		}
@@ -275,7 +272,7 @@
 	<Filepicker bind:current_file accept_image={false} show_preview={false} />
 	{#if current_file}
 		<hr />
-		<section>
+		<section style="width:100%">
 			<VideoControls {video} {video_data} />
 			<Seekbar {video_data} {on_seek} {on_start_seek} {on_end_seek} />
 		</section>
@@ -306,9 +303,4 @@
 </article>
 
 <style>
-	video {
-		width: 100%;
-		height: auto;
-		max-height: 75vh;
-	}
 </style>
