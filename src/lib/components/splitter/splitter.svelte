@@ -1,19 +1,17 @@
 <script lang="ts">
 	import Filepicker from '$lib/components/filepicker.svelte';
 	import Seekbar from '$lib/components/splitter/seekbar.svelte';
+	import VideoControls from '$lib/components/splitter/video_controls.svelte';
+
 	import { type Stream } from '$lib/ffmpeg/ffmpeg_types';
 	import { format_ffmpeg_time } from '$lib/utils';
 	import { ffmpeg, set_ffmpeg_busy, is_ffmpeg_busy, listen } from '$lib/ffmpeg/ffmpeg.svelte';
 	import { fetchFile } from '@ffmpeg/util';
 	import { toast } from '@zerodevx/svelte-toast';
 	import { type LogEvent, type ProgressEvent } from '@ffmpeg/ffmpeg';
-	import { Play, Pause, Square, Volume2, VolumeOff } from '@lucide/svelte';
 
 	let current_file: File | null = $state(null);
-	let vid: HTMLVideoElement | null = $state(null);
-	let looping = $state(false);
-	let sound_enabled = $state(true);
-	let playing = $state(false);
+	let video: HTMLVideoElement | null = $state(null);
 	let progress: number = $state(0);
 	let duration: number = $state(0);
 	let current_time: number = $state(0);
@@ -57,57 +55,47 @@
 			start_progress = end_progress - 0.05;
 		}
 
-		if (!vid) return;
+		if (!video) return;
 		if (progress < start_progress) {
 			progress = start_progress;
-			vid.currentTime = progress * vid.duration;
+			video.currentTime = progress * video.duration;
 		} else if (progress > end_progress) {
 			progress = end_progress;
-			vid.currentTime = progress * vid.duration;
+			video.currentTime = progress * video.duration;
 		}
 	}
 
 	function on_seek(progress: number) {
-		if (!vid) return;
-		if (isNaN(vid.duration)) return;
-		console.log('Seeking to:', progress);
-		vid.currentTime = progress * vid.duration;
+		if (!video) return;
+		if (isNaN(video.duration)) return;
+		video.currentTime = progress * video.duration;
 	}
 
 	ondurationchange = (_event: Event) => {
-		if (!vid) return;
-		duration = vid.duration;
+		if (!video) return;
+		duration = video.duration;
 	};
 
-	function toggle_play() {
-		if (!vid) return;
-		if (!playing) {
-			vid.play();
-		} else {
-			vid.pause();
-		}
+	function stop() {
+		if (!video) return;
+		video.pause();
+		video.currentTime = start_progress * video.duration;
 	}
 
 	function ontimeupdate(_event: Event) {
-		if (!vid) return;
-		progress = vid.currentTime / vid.duration;
-		current_time = vid.currentTime;
+		if (!video) return;
+		progress = video.currentTime / video.duration;
+		current_time = video.currentTime;
 		if (progress < start_progress) {
-			vid.currentTime = start_progress * vid.duration;
+			video.currentTime = start_progress * video.duration;
 		} else if (progress > end_progress) {
-			if (!looping) {
-				vid.pause();
-				vid.currentTime = end_progress * vid.duration;
+			if (!video.loop) {
+				video.pause();
+				video.currentTime = end_progress * video.duration;
 			} else {
-				vid.currentTime = start_progress * vid.duration;
+				video.currentTime = start_progress * video.duration;
 			}
 		}
-	}
-
-	function stop() {
-		if (!vid) return;
-		vid.pause();
-		vid.currentTime = start_progress * vid.duration;
 	}
 
 	async function get_sound_extension(stream: Stream): Promise<string | null> {
@@ -278,29 +266,9 @@
 	<Filepicker bind:current_file accept_image={false} show_preview={false} />
 	{#if current_file}
 		<hr />
+		<VideoControls {video} {stop} {duration} />
 		<br />
-		<section class="controls-container">
-			<div class="controls">
-				<button onclick={stop}><Square /></button>
-				<button onclick={toggle_play}
-					>{#if playing}<Pause />
-					{:else}
-						<Play />
-					{/if}
-				</button>
-			</div>
-			<div class="controls">
-				<button onclick={() => (looping = !looping)}
-					>{#if looping}Loop{:else}Play Once{/if}</button
-				>
-				<button onclick={() => (sound_enabled = !sound_enabled)}>
-					{#if sound_enabled}<Volume2 />{:else}<VolumeOff />
-					{/if}
-				</button>
-			</div>
-		</section>
 		<section>
-			<small>Trim Start/End</small>
 			<Seekbar
 				{on_seek}
 				{progress}
@@ -313,12 +281,8 @@
 			/>
 		</section>
 		<video
-			loop={looping}
-			muted={!sound_enabled}
-			bind:this={vid}
+			bind:this={video}
 			src={URL.createObjectURL(current_file)}
-			onpause={() => (playing = false)}
-			onplay={() => (playing = true)}
 			{ondurationchange}
 			{ontimeupdate}
 		>
@@ -343,16 +307,6 @@
 </article>
 
 <style>
-	.controls-container {
-		display: flex;
-		justify-content: space-between;
-	}
-
-	.controls {
-		display: flex;
-		gap: 0.5rem;
-	}
-
 	video {
 		width: 100%;
 		height: auto;

@@ -1,6 +1,6 @@
 const sound_re = /\[sound=(?<url>.*)]/;
 const image_extensions = ['jpg', 'jpeg', 'png', 'gif'];
-const video_extensions = ['mp4', 'webm'];
+const video_extensions = ['mp4', 'webm', 'mkv'];
 const audio_extensions = ['mp3', 'wav', 'ogg'];
 
 export function get_url(file_name: String): string | null {
@@ -44,10 +44,19 @@ export function get_extension(file_name: String): string | null {
     return null;
 }
 
-export function format_ffmpeg_time(seconds: number): string {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-    const milliseconds = Math.floor((seconds % 1) * 1000);
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`;
+export function format_ffmpeg_time(seconds: number, show_hours = true): string {
+    const hours = Math.floor(seconds / 3600).toString()
+        .padStart(2, '0');
+    const minutes = Math.floor((seconds % 3600) / 60).toString()
+        .padStart(2, '0');
+    const secs = Math.floor(seconds % 60).toString()
+        .padStart(2, '0');
+    const milliseconds = Math.floor((seconds % 1) * 1000).toString()
+        .padStart(3, '0');
+
+    const formatted_time = `${minutes}:${secs}.${milliseconds}`;
+    if (!show_hours) {
+        return formatted_time;
+    }
+    return `${hours}:${formatted_time}`;
 }

@@ -24,22 +24,6 @@
 	}: SeekbarProps = $props();
 
 	let seekbar: HTMLDivElement | null = $state(null);
-
-	function format_time(seconds: number | undefined): string {
-		if (seconds === undefined || isNaN(seconds)) {
-			return '0:00.000';
-		}
-		const minutes = Math.floor(seconds / 60)
-			.toString()
-			.padStart(2, '0');
-		const secs = Math.round(seconds % 60)
-			.toString()
-			.padStart(2, '0');
-		const milliseconds = Math.round((seconds % 1) * 1000)
-			.toString()
-			.padStart(3, '0');
-		return `${minutes}:${secs}.${milliseconds}`;
-	}
 </script>
 
 <div id="parent">
@@ -50,24 +34,18 @@
 			{seekbar}
 			on_seek={on_start_seek}
 		/>
-		<ProgressDrag progress={progress ?? 0} drag_object={handle} {seekbar} {on_seek} />
 		<ProgressDrag
 			progress={end_progress ?? 100}
 			drag_object={right_bracket}
 			{seekbar}
 			on_seek={on_end_seek}
 		/>
-		<div class="flex width">
-			<div class="timer-text static width unselectable">{format_time(0)}</div>
-			<div class="timer-text static width unselectable end">{format_time(duration)}</div>
-		</div>
+		<ProgressDrag progress={progress ?? 0} drag_object={handle} {seekbar} {on_seek} />
 	</div>
 </div>
 
 {#snippet handle()}
-	<div class="handle">
-		<div class="timer-text dynamic-drag unselectable">{format_time(current_time)}</div>
-	</div>
+	<div class="handle"></div>
 {/snippet}
 
 {#snippet left_bracket()}
@@ -89,12 +67,11 @@
 		border-bottom: 0.25rem solid var(--subtle);
 		border-top-right-radius: 0.25rem;
 		border-bottom-right-radius: 0.25rem;
-		transform: translate(-0.5rem, -0.25rem);
+		transform: translate(0.5rem, -0.25rem);
 		cursor: ew-resize;
 	}
 	:global(.left_bracket) {
 		left: 0;
-		top: 0;
 		width: 0.5rem;
 		height: 100%;
 		border-left: 0.25rem solid var(--subtle);
@@ -102,12 +79,11 @@
 		border-bottom: 0.25rem solid var(--subtle);
 		border-top-left-radius: 0.25rem;
 		border-bottom-left-radius: 0.25rem;
-		transform: translate(0rem, -0.25rem);
+		transform: translate(-0.25rem, -0.25rem);
 		cursor: ew-resize;
 	}
 	:global(.handle) {
 		width: 0.4rem;
-		transform: translate(-0.2rem);
 		background-color: var(--accent);
 		cursor: ew-resize;
 		height: 100%;
