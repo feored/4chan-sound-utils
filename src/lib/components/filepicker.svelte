@@ -34,35 +34,34 @@
 	});
 </script>
 
-<label for="source_media">Upload a video or image.</label>
-<input
-	accept={accepted_formats.join(',')}
-	bind:files
-	id="source_media"
-	name="source_media"
-	type="file"
-/>
-{#if files}
-	{#each Array.from(files) as file}
-		<p>Original size: {byteSize(file.size, { units: 'iec' })}</p>
-		{#if show_preview}
-			<div id="media">
+<div>
+	<div class="flash accent">
+		<label for="source_media" style="font-weight:bold;">Upload a video or image.</label>
+		<input
+			accept={accepted_formats.join(',')}
+			bind:files
+			id="source_media"
+			name="source_media"
+			type="file"
+		/>
+	</div>
+	{#if files}
+		{#each Array.from(files) as file}
+			<!-- <p>Original size: {byteSize(file.size, { units: 'iec' })}</p> -->
+			{#if show_preview}
 				{#if get_file_type(file.name) === 'video'}
 					<!-- svelte-ignore a11y_media_has_caption -->
-					<video width="720" height="480" controls>
+					<video controls>
 						<source src={URL.createObjectURL(file)} type={file.type} />
 						Your browser does not support the video tag.
 					</video>
 				{:else if get_file_type(file.name) === 'image'}
 					<img src={URL.createObjectURL(file)} alt="Selected image" />
 				{/if}
-			</div>
-		{/if}
-	{/each}
-{/if}
+			{/if}
+		{/each}
+	{/if}
+</div>
 
 <style>
-	#media {
-		max-width: 50%;
-	}
 </style>

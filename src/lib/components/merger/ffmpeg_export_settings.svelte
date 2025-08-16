@@ -41,8 +41,8 @@
 	});
 </script>
 
-<form>
-	<label><b>FFmpeg settings</b></label>
+<div class="flash bd-accent">
+	<h3 class="flash">FFmpeg settings</h3>
 	<fieldset>
 		<legend>Output format</legend>
 		<p>MP4 highly recommended.</p>
@@ -98,7 +98,7 @@
 			</div>
 		</fieldset>
 	{/if}
-</form>
+</div>
 
 <style>
 	.options {

@@ -193,8 +193,4 @@
 	video {
 		max-width: 50%;
 	}
-
-	button {
-		width: fit-content;
-	}
 </style>
