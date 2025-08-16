@@ -18,8 +18,8 @@
 	let duration: number = $state(0);
 	let current_time: number = $state(0);
 
-	let start_percentage: number = $state(0);
-	let end_percentage: number = $state(100);
+	let start_progress: number = $state(0);
+	let end_progress: number = $state(1);
 
 	let final_stream: Stream = $state({
 		name: '',
@@ -36,23 +36,33 @@
 	}
 
 	function listen_ffmpeg_progress(event: ProgressEvent) {
-		const progress = event.progress * 100; // Convert to percentage
+		const progress = event.progress * 100;
 		loading_message = `Splitting video... ${progress.toFixed(2)}%`;
 	}
 
-	function onstartendinput() {
-		if (start_percentage > end_percentage) {
-			end_percentage = start_percentage + 5;
-		} else if (end_percentage < start_percentage) {
-			start_percentage = end_percentage - 5;
+	function on_start_seek(progress: number) {
+		start_progress = progress;
+		on_start_end_seek();
+	}
+
+	function on_end_seek(progress: number) {
+		end_progress = progress;
+		on_start_end_seek();
+	}
+
+	function on_start_end_seek() {
+		if (start_progress > end_progress) {
+			end_progress = start_progress + 0.05;
+		} else if (end_progress < start_progress) {
+			start_progress = end_progress - 0.05;
 		}
 
 		if (!vid) return;
-		if (progress < start_percentage / 100) {
-			progress = start_percentage / 100;
+		if (progress < start_progress) {
+			progress = start_progress;
 			vid.currentTime = progress * vid.duration;
-		} else if (progress > end_percentage / 100) {
-			progress = end_percentage / 100;
+		} else if (progress > end_progress) {
+			progress = end_progress;
 			vid.currentTime = progress * vid.duration;
 		}
 	}
@@ -82,14 +92,14 @@
 		if (!vid) return;
 		progress = vid.currentTime / vid.duration;
 		current_time = vid.currentTime;
-		if (progress < start_percentage / 100) {
-			vid.currentTime = (start_percentage / 100) * vid.duration;
-		} else if (progress > end_percentage / 100) {
+		if (progress < start_progress) {
+			vid.currentTime = start_progress * vid.duration;
+		} else if (progress > end_progress) {
 			if (!looping) {
 				vid.pause();
-				vid.currentTime = (end_percentage / 100) * vid.duration;
+				vid.currentTime = end_progress * vid.duration;
 			} else {
-				vid.currentTime = (start_percentage / 100) * vid.duration;
+				vid.currentTime = start_progress * vid.duration;
 			}
 		}
 	}
@@ -97,7 +107,7 @@
 	function stop() {
 		if (!vid) return;
 		vid.pause();
-		vid.currentTime = (start_percentage / 100) * vid.duration;
+		vid.currentTime = start_progress * vid.duration;
 	}
 
 	async function get_sound_extension(stream: Stream): Promise<string | null> {
@@ -221,8 +231,8 @@
 			toast.push('No file selected.');
 			return;
 		}
-		const start_time = (start_percentage / 100) * duration;
-		const trim_duration = (end_percentage / 100 - start_percentage / 100) * duration;
+		const start_time = (start_progress / 100) * duration;
+		const trim_duration = (end_progress / 100 - start_progress / 100) * duration;
 
 		let audio_stream = await extract_audio(start_time, trim_duration);
 		if (!audio_stream) {
@@ -291,29 +301,15 @@
 		</section>
 		<section>
 			<small>Trim Start/End</small>
-			<input
-				step="0.1"
-				oninput={onstartendinput}
-				type="range"
-				min="0"
-				max="100"
-				bind:value={start_percentage}
-			/>
-			<input
-				step="0.1"
-				oninput={onstartendinput}
-				type="range"
-				min="0"
-				max="100"
-				bind:value={end_percentage}
-			/>
 			<Seekbar
 				{on_seek}
-				master_progress={progress}
+				{progress}
 				{current_time}
 				{duration}
-				{start_percentage}
-				{end_percentage}
+				{start_progress}
+				{end_progress}
+				{on_start_seek}
+				{on_end_seek}
 			/>
 		</section>
 		<video

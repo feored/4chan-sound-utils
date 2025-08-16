@@ -2,28 +2,28 @@
 	import ProgressDrag from './progress_drag.svelte';
 
 	type SeekbarProps = {
-		master_progress?: number;
+		progress?: number;
 		current_time?: number;
 		duration?: number;
-		start_percentage?: number;
-		end_percentage?: number;
+		start_progress?: number;
+		end_progress?: number;
 		on_seek?: (progress: number) => void;
+		on_start_seek?: (start: number) => void;
+		on_end_seek?: (end: number) => void;
 	};
 
 	let {
-		master_progress,
+		progress,
 		current_time,
-		start_percentage,
-		end_percentage,
+		start_progress,
+		end_progress,
 		duration,
-		on_seek
+		on_seek,
+		on_start_seek,
+		on_end_seek
 	}: SeekbarProps = $props();
 
-	let start: HTMLDivElement | null = $state(null);
-	let end: HTMLDivElement | null = $state(null);
-
 	let seekbar: HTMLDivElement | null = $state(null);
-	let seeking: boolean = $state(false);
 
 	function format_time(seconds: number | undefined): string {
 		if (seconds === undefined || isNaN(seconds)) {
@@ -40,61 +40,42 @@
 			.padStart(3, '0');
 		return `${minutes}:${secs}.${milliseconds}`;
 	}
-
-	$inspect(master_progress);
-
-	// function mousedown(event: MouseEvent) {
-	// 	if (!seekbar || !handle) return;
-	// 	seeking = true;
-	// 	drag(event);
-	// }
-
-	// export function force_seek(progress: number) {
-	// 	if (!seekbar || !handle) return;
-	// 	handle.style.left = `${progress}%`;
-	// }
-
-	// function drag(event: MouseEvent) {
-	// 	if (!seekbar || !handle || !seeking) return;
-	// 	const seekbar_rect = seekbar.getBoundingClientRect();
-	// 	const handle_width = handle.getBoundingClientRect().width;
-	// 	const seekbar_width = seekbar_rect.width - handle_width;
-
-	// 	let progress = (event.clientX - seekbar_rect.left) / seekbar_width;
-	// 	let bar_progress = Math.max(0, Math.min(100, progress * 100)); // Clamp between 0 and 100
-	// 	handle.style.left = `${bar_progress}%`;
-	// 	on_seek?.(progress);
-	// }
-
-	$effect(() => {
-		set_bracket_percentage(true, start_percentage ?? 0);
-		set_bracket_percentage(false, end_percentage ?? 100);
-	});
-
-	function set_bracket_percentage(isLeft: boolean, percentage: number) {
-		if (!seekbar || !start || !end) return;
-		const bracket = isLeft ? start : end;
-		bracket.style.left = `${percentage}%`;
-	}
 </script>
 
 <div id="parent">
 	<div id="seekbar" bind:this={seekbar}>
-		<ProgressDrag progress={master_progress ?? 0} drag_object={handle} {seekbar} {on_seek}
-		></ProgressDrag>
+		<ProgressDrag
+			progress={start_progress ?? 0}
+			drag_object={left_bracket}
+			{seekbar}
+			on_seek={on_start_seek}
+		/>
+		<ProgressDrag progress={progress ?? 0} drag_object={handle} {seekbar} {on_seek} />
+		<ProgressDrag
+			progress={end_progress ?? 100}
+			drag_object={right_bracket}
+			{seekbar}
+			on_seek={on_end_seek}
+		/>
 		<div class="flex width">
 			<div class="timer-text static width unselectable">{format_time(0)}</div>
 			<div class="timer-text static width unselectable end">{format_time(duration)}</div>
 		</div>
 	</div>
-	<div class="left-bracket" bind:this={start}></div>
-	<div class="right-bracket" bind:this={end}></div>
 </div>
 
 {#snippet handle()}
 	<div class="handle">
 		<div class="timer-text dynamic-drag unselectable">{format_time(current_time)}</div>
 	</div>
+{/snippet}
+
+{#snippet left_bracket()}
+	<div class="left_bracket"></div>
+{/snippet}
+
+{#snippet right_bracket()}
+	<div class="right_bracket"></div>
 {/snippet}
 
 <style>
@@ -109,6 +90,7 @@
 		border-top-right-radius: 0.25rem;
 		border-bottom-right-radius: 0.25rem;
 		transform: translate(-0.5rem, -0.25rem);
+		cursor: ew-resize;
 	}
 	:global(.left_bracket) {
 		left: 0;
@@ -121,10 +103,11 @@
 		border-top-left-radius: 0.25rem;
 		border-bottom-left-radius: 0.25rem;
 		transform: translate(0rem, -0.25rem);
+		cursor: ew-resize;
 	}
 	:global(.handle) {
-		width: 0.25rem;
-		transform: translate(-0.125rem);
+		width: 0.4rem;
+		transform: translate(-0.2rem);
 		background-color: var(--accent);
 		cursor: ew-resize;
 		height: 100%;
@@ -161,7 +144,7 @@
 	}
 
 	#seekbar {
-		border: 1px solid var(--bg-contrast);
+		/* border: 1px solid var(--bg-contrast); */
 		width: 100%;
 		background-color: var(--bg-accent);
 		height: 100%;

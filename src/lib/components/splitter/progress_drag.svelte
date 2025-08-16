@@ -17,13 +17,8 @@
 	let self_width = $derived.by(() => (self ? self.getBoundingClientRect().width : 0));
 	let seekbar_width = $derived(seekbar_rect.width - self_width);
 
-	function onmouseenter() {
-		document.body.style.cursor = 'ew-resize;';
-	}
-
-	function onmousedown() {
+	function onmousedown(event: MouseEvent) {
 		dragging = true;
-		//onclick?.();
 	}
 
 	function onmouseup(event: MouseEvent) {
@@ -34,7 +29,7 @@
 	function onmousemove(event: MouseEvent) {
 		if (!dragging || !self || !seekbar) return;
 		let bar_progress = (event.clientX - seekbar_rect.left) / seekbar_width;
-		progress = Math.max(0, Math.min(1, bar_progress)); // Clamp between 0 and 100
+		progress = Math.max(0, Math.min(1, bar_progress)); // Clamp between 0 and 1
 		on_seek?.(progress);
 	}
 </script>
