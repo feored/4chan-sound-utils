@@ -283,19 +283,20 @@
 			<VideoControls {video} {video_data} />
 			<Seekbar {video_data} {on_seek} {on_start_seek} {on_end_seek} />
 		</section>
-		<div class="video-container">
-			<video
-				bind:this={video}
-				src={URL.createObjectURL(current_file)}
-				{ondurationchange}
-				{ontimeupdate}
-				{onresize}
-			>
-				Your browser does not support the video tag.
-			</video>
-			<CanvasController {video} />
-		</div>
-
+		<section>
+			<div class="video-container">
+				<video
+					bind:this={video}
+					src={URL.createObjectURL(current_file)}
+					{ondurationchange}
+					{ontimeupdate}
+					{onresize}
+				>
+					Your browser does not support the video tag.
+				</video>
+				<CanvasController {video} />
+			</div>
+		</section>
 		<button
 			onclick={() => {
 				split();
@@ -317,7 +318,7 @@
 <style>
 	.video-container {
 		position: relative;
-		width: auto;
+		width: fit-content;
 		margin: auto;
 	}
 </style>

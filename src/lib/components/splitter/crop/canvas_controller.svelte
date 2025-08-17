@@ -12,7 +12,8 @@
 		p1: Point;
 	};
 
-	const OUTSIDE_COLOR = '#000000CC';
+	const OUTSIDE_COLOR = '#000000E6';
+	const HANDLE_SIZE = 12; // Size of the resize handles
 </script>
 
 <script lang="ts">
@@ -26,15 +27,12 @@
 	let dimensions = $state({ width: 0, height: 0 });
 	let dragging = $state(false);
 	let visible_handles = $state(false);
-	let active_handle: Direction = $state('NW');
+	let previous_touch: Point = $state({ x: 0, y: 0 });
+	let active_handle: Direction | 'surface' = $state('NW');
 
 	let bounds = $state<Bounds>({
 		p0: { x: 0, y: 0 },
 		p1: { x: dimensions.width, y: dimensions.height }
-	});
-
-	let HANDLE_SIZE = $derived.by(() => {
-		return 12;
 	});
 
 	// Reset when a new video is loaded
@@ -46,8 +44,8 @@
 
 	function reset(): void {
 		dimensions = {
-			width: video?.offsetWidth || 0,
-			height: video?.offsetHeight || 0
+			width: video ? video.offsetWidth : 0,
+			height: video ? video.offsetHeight : 0
 		};
 		bounds = {
 			p0: { x: 0, y: 0 },
@@ -64,6 +62,7 @@
 		draw_background(context);
 		if (visible_handles) {
 			draw_handles(context);
+			draw_border(context);
 		}
 	}
 
@@ -94,13 +93,27 @@
 		); // SE
 	}
 
+	function draw_border(context: CanvasRenderingContext2D): void {
+		context.strokeStyle = '#111';
+		context.lineWidth = 2;
+		context.strokeRect(
+			bounds.p0.x,
+			bounds.p0.y,
+			bounds.p1.x - bounds.p0.x,
+			bounds.p1.y - bounds.p0.y
+		);
+	}
+
 	function draw_handles(context: CanvasRenderingContext2D): void {
 		if (!canvas) return;
-		context.fillStyle = '#111';
+		context.fillStyle = '#FFF';
+		context.strokeStyle = '#111';
+		context.lineWidth = 2;
 		const handles = get_handles_origins();
 		for (const direction of direction_options) {
 			const handle = handles[direction];
 			context.fillRect(handle.x, handle.y, HANDLE_SIZE, HANDLE_SIZE);
+			context.strokeRect(handle.x, handle.y, HANDLE_SIZE, HANDLE_SIZE);
 		}
 	}
 
@@ -130,7 +143,7 @@
 		return handles;
 	}
 
-	function get_potential_handle({ x, y }: { x: number; y: number }): Direction | null {
+	function get_potential_handle({ x, y }: { x: number; y: number }): Direction | 'surface' | null {
 		const handles = get_handles_origins();
 		for (const direction of direction_options) {
 			const handle = handles[direction];
@@ -143,6 +156,9 @@
 				return direction;
 			}
 		}
+		if (x >= bounds.p0.x && x <= bounds.p1.x && y >= bounds.p0.y && y <= bounds.p1.y) {
+			return 'surface';
+		}
 		return null;
 	}
 
@@ -153,9 +169,15 @@
 		const y = event.clientY - rect.top;
 		const potential_handle = get_potential_handle({ x, y });
 		if (potential_handle) {
-			canvas.style.cursor = `${potential_handle}-resize`;
+			if (potential_handle === 'surface') {
+				canvas.style.cursor = 'move';
+				previous_touch = { x, y };
+			} else {
+				canvas.style.cursor = `${potential_handle}-resize`;
+			}
 			dragging = true;
 			active_handle = potential_handle;
+			return;
 		}
 	}
 
@@ -173,7 +195,11 @@
 			const y = event.clientY - rect.top;
 			const potential_handle = get_potential_handle({ x, y });
 			if (potential_handle) {
-				canvas.style.cursor = `${potential_handle}-resize`;
+				if (potential_handle === 'surface') {
+					canvas.style.cursor = 'move';
+				} else {
+					canvas.style.cursor = `${potential_handle}-resize`;
+				}
 			} else {
 				canvas.style.cursor = 'auto';
 			}
@@ -211,6 +237,31 @@
 					bounds.p1.x = Math.max(0, Math.min(dimensions.width, x));
 					bounds.p1.y = Math.max(0, Math.min(dimensions.height, y));
 					break;
+				case 'surface':
+					// If dragging on the surface, we can move the entire crop area
+					const deltaX = x - previous_touch.x;
+					const deltaY = y - previous_touch.y;
+					const new_bounds = {
+						p0: {
+							x: bounds.p0.x + deltaX,
+							y: bounds.p0.y + deltaY
+						},
+						p1: {
+							x: bounds.p1.x + deltaX,
+							y: bounds.p1.y + deltaY
+						}
+					};
+
+					if (new_bounds.p0.x > 0 && new_bounds.p1.x < dimensions.width) {
+						bounds.p0.x = new_bounds.p0.x;
+						bounds.p1.x = new_bounds.p1.x;
+					}
+					if (new_bounds.p0.y > 0 && new_bounds.p1.y < dimensions.height) {
+						bounds.p0.y = new_bounds.p0.y;
+						bounds.p1.y = new_bounds.p1.y;
+					}
+
+					previous_touch = { x, y };
 			}
 
 			// Redraw the canvas
@@ -232,10 +283,9 @@
 	}
 </script>
 
-<svelte:document {onmouseup} />
+<svelte:document {onmouseup} {onmousemove} />
 <canvas
 	{onmousedown}
-	{onmousemove}
 	{onmouseenter}
 	{onmouseleave}
 	bind:this={canvas}

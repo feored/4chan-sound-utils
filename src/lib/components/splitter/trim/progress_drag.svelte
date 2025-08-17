@@ -69,13 +69,16 @@
 	{onmousemove}
 >
 	{#if dragging}
-		<div class="p-.5 timer-display timer-text flash accent unselectable">
+		<div class="p-.5 timer-display timer-text flash accent unselectable z-index-100">
 			{format_ffmpeg_time(progress * duration, false)}
 		</div>
 	{/if}
 </div>
 
 <style>
+	.z-index-100 {
+		z-index: 100;
+	}
 	.unselectable {
 		-webkit-touch-callout: none;
 		-webkit-user-select: none;
