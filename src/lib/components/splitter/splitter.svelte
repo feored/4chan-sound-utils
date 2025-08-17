@@ -31,6 +31,7 @@
 	let current_file: File | null = $state(null);
 	let video: HTMLVideoElement | null = $state(null);
 	let video_data: VideoData = $state(default_video_data);
+	let last_seek_preview: boolean = $state(false);
 
 	$effect(() => {
 		if (current_file) {
@@ -81,6 +82,13 @@
 		}
 	}
 
+	function on_preview(progress: number) {
+		if (!video) return;
+		if (isNaN(video.duration)) return;
+		video.currentTime = progress * video.duration;
+		last_seek_preview = true;
+	}
+
 	function on_seek(progress: number) {
 		if (!video) return;
 		if (isNaN(video.duration)) return;
@@ -90,6 +98,7 @@
 			video_data.progress = video_data.end_progress;
 		}
 		video.currentTime = progress * video.duration;
+		last_seek_preview = false;
 	}
 
 	function ondurationchange() {
@@ -99,6 +108,7 @@
 
 	function ontimeupdate(_event: Event) {
 		if (!video) return;
+		if (last_seek_preview) return;
 		video_data.progress = video.currentTime / video.duration;
 		video_data.current_time = video.currentTime;
 		if (video_data.progress < video_data.start_progress) {
@@ -281,7 +291,7 @@
 		<hr />
 		<section style="width:100%">
 			<VideoControls {video} {video_data} />
-			<Seekbar {video_data} {on_seek} {on_start_seek} {on_end_seek} />
+			<Seekbar {on_preview} {video_data} {on_seek} {on_start_seek} {on_end_seek} />
 		</section>
 		<section>
 			<div class="video-container">

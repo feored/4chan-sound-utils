@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { format_ffmpeg_time } from '$lib/utils';
+	import { on } from 'svelte/events';
 	interface DraggableProps {
 		progress: number;
 		duration: number;
 		seek_type: 'handle' | 'left_bracket' | 'right_bracket';
 		seekbar: HTMLDivElement;
+		on_preview?: (progress: number) => void;
 		on_seek?: (progress: number) => void;
 	}
-	let { progress, seek_type, duration, seekbar, on_seek }: DraggableProps = $props();
+	let { progress, seek_type, duration, seekbar, on_preview, on_seek }: DraggableProps = $props();
 
 	let dragging = $state(false);
 	let self: HTMLDivElement | null = $state(null);
@@ -21,6 +23,7 @@
 		if (!dragging || !self || !seekbar) return;
 		dragging = false;
 		document.body.style.cursor = 'auto';
+		on_seek?.(progress);
 	}
 
 	function onmousemove(event: MouseEvent) {
@@ -30,7 +33,11 @@
 			(event.clientX - seekbar_rect.left) /
 			(seekbar_rect.width - self.getBoundingClientRect().width);
 		progress = Math.max(0, Math.min(1, bar_progress)); // Clamp between 0 and 1
-		on_seek?.(progress);
+		if (seek_type === 'handle') {
+			on_seek?.(progress);
+		} else {
+			on_preview?.(progress);
+		}
 	}
 
 	function ontouchmove(event: TouchEvent) {
@@ -41,7 +48,11 @@
 			(touch.clientX - seekbar_rect.left) /
 			(seekbar_rect.width - self.getBoundingClientRect().width);
 		progress = Math.max(0, Math.min(1, bar_progress)); // Clamp between 0 and 1
-		on_seek?.(progress);
+		if (seek_type === 'handle') {
+			on_seek?.(progress);
+		} else {
+			on_preview?.(progress);
+		}
 	}
 
 	function display_progress() {
@@ -67,6 +78,7 @@
 	{onmouseenter}
 	{onmousedown}
 	{onmousemove}
+	class:z-index-100={dragging}
 >
 	{#if dragging}
 		<div class="p-.5 timer-display timer-text flash accent unselectable z-index-100">
