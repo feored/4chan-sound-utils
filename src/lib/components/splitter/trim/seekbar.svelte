@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ProgressDrag from './progress_drag.svelte';
+	import ProgressDrag from '$lib/components/splitter/trim/progress_drag.svelte';
 	import { type VideoData } from '$lib/components/splitter/splitter.svelte';
 
 	type SeekbarProps = {

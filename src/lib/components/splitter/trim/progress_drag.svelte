@@ -20,7 +20,7 @@
 	function onmouseup() {
 		if (!dragging || !self || !seekbar) return;
 		dragging = false;
-		document.body.style.cursor = 'default';
+		document.body.style.cursor = 'auto';
 	}
 
 	function onmousemove(event: MouseEvent) {

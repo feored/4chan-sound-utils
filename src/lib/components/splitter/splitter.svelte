@@ -17,8 +17,9 @@
 
 <script lang="ts">
 	import Filepicker from '$lib/components/filepicker.svelte';
-	import Seekbar from '$lib/components/splitter/seekbar.svelte';
+	import Seekbar from '$lib/components/splitter/trim/seekbar.svelte';
 	import VideoControls from '$lib/components/splitter/video_controls.svelte';
+	import CanvasController from '$lib/components/splitter/crop/canvas_controller.svelte';
 
 	import { type Stream } from '$lib/ffmpeg/ffmpeg_types';
 	import { format_ffmpeg_time } from '$lib/utils';
@@ -29,7 +30,6 @@
 
 	let current_file: File | null = $state(null);
 	let video: HTMLVideoElement | null = $state(null);
-
 	let video_data: VideoData = $state(default_video_data);
 
 	$effect(() => {
@@ -283,14 +283,19 @@
 			<VideoControls {video} {video_data} />
 			<Seekbar {video_data} {on_seek} {on_start_seek} {on_end_seek} />
 		</section>
-		<video
-			bind:this={video}
-			src={URL.createObjectURL(current_file)}
-			{ondurationchange}
-			{ontimeupdate}
-		>
-			Your browser does not support the video tag.
-		</video>
+		<div class="video-container">
+			<video
+				bind:this={video}
+				src={URL.createObjectURL(current_file)}
+				{ondurationchange}
+				{ontimeupdate}
+				{onresize}
+			>
+				Your browser does not support the video tag.
+			</video>
+			<CanvasController {video} />
+		</div>
+
 		<button
 			onclick={() => {
 				split();
@@ -310,4 +315,9 @@
 </article>
 
 <style>
+	.video-container {
+		position: relative;
+		width: auto;
+		margin: auto;
+	}
 </style>

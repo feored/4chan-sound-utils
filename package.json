@@ -41,6 +41,7 @@
 		"@ffmpeg/ffmpeg": "^0.12.15",
 		"@ffmpeg/util": "^0.12.2",
 		"@lucide/svelte": "^0.536.0",
-		"byte-size": "^9.0.1"
+		"byte-size": "^9.0.1",
+		"svelte-canvas": "^2.0.2"
 	}
 }
