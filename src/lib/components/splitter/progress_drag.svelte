@@ -58,7 +58,7 @@
 <svelte:document {onmouseup} {onmousemove} />
 <div
 	bind:this={self}
-	class="draggable {seek_type}"
+	class="draggable {seek_type} unselectable"
 	style:left={display_progress()}
 	ontouchstart={onmousedown}
 	ontouchend={onmouseup}

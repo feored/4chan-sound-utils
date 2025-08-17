@@ -15,6 +15,7 @@
 			video.addEventListener('play', () => (playing = true));
 			video.addEventListener('pause', () => (playing = false));
 			video.addEventListener('ended', () => (playing = false));
+			video.addEventListener('loadstart', () => (playing = false)); //loading a new video
 		}
 	});
 

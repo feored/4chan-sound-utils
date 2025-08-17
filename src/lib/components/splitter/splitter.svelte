@@ -6,6 +6,13 @@
 		start_progress: number;
 		end_progress: number;
 	}
+	const default_video_data: VideoData = {
+		progress: 0,
+		current_time: 0,
+		duration: 0,
+		start_progress: 0,
+		end_progress: 1
+	};
 </script>
 
 <script lang="ts">
@@ -23,12 +30,12 @@
 	let current_file: File | null = $state(null);
 	let video: HTMLVideoElement | null = $state(null);
 
-	let video_data: VideoData = $state({
-		progress: 0,
-		current_time: 0,
-		duration: 0,
-		start_progress: 0,
-		end_progress: 1
+	let video_data: VideoData = $state(default_video_data);
+
+	$effect(() => {
+		if (current_file) {
+			video_data = default_video_data;
+		}
 	});
 
 	let final_stream: Stream = $state({
@@ -224,9 +231,9 @@
 			toast.push('No file selected.');
 			return;
 		}
-		const start_time = (video_data.start_progress / 100) * video_data.duration;
+		const start_time = video_data.start_progress * video_data.duration;
 		const trim_duration =
-			(video_data.end_progress / 100 - video_data.start_progress / 100) * video_data.duration;
+			(video_data.end_progress - video_data.start_progress) * video_data.duration;
 
 		let audio_stream = await extract_audio(start_time, trim_duration);
 		if (!audio_stream) {
