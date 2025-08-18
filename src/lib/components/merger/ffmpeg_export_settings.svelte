@@ -8,7 +8,7 @@
 		x264PresetOptions,
 		x264TuneOptions,
 		vp8BitrateOptions
-	} from '$lib/ffmpeg/ffmpeg_types';
+	} from '$lib/ffmpeg/types';
 
 	type SettingsProps = {
 		export_settings?: ExportSettings;

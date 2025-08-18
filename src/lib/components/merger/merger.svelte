@@ -2,14 +2,9 @@
 	import Filepicker from '$lib/components/filepicker.svelte';
 	import FfmpegExportSettings from './ffmpeg_export_settings.svelte';
 	import byteSize from 'byte-size';
-	import {
-		ffmpeg,
-		get_ffmpeg_parameters,
-		set_ffmpeg_busy,
-		is_ffmpeg_busy,
-		listen
-	} from '$lib/ffmpeg/ffmpeg.svelte';
-	import type { Stream, ExportSettings } from '$lib/ffmpeg/ffmpeg_types';
+	import { get_ffmpeg_parameters } from '$lib/ffmpeg/parameters/parameter_generator';
+	import { ffmpeg, set_ffmpeg_busy, is_ffmpeg_busy, listen } from '$lib/ffmpeg/ffmpeg.svelte';
+	import type { Stream, ExportSettings } from '$lib/ffmpeg/types';
 	import { get_url, get_file_name } from '$lib/utils';
 	import { toast } from '@zerodevx/svelte-toast';
 	import { fetchFile } from '@ffmpeg/util';

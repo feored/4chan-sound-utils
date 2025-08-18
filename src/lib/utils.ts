@@ -30,6 +30,10 @@ export function get_file_type(file_name: String): "image" | "video" | "audio" | 
     return "unknown";
 }
 
+export function is_image(fileName: string): boolean {
+    return get_file_type(fileName) === 'image';
+}
+
 export function get_file_name(file_name: String): string {
     let sound_removed = file_name.replaceAll(/\[.+?\]/g, "");
     let extension_removed = sound_removed.split('.')[0]
