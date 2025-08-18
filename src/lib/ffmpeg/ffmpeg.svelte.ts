@@ -2,9 +2,8 @@ import { FFmpeg } from '@ffmpeg/ffmpeg';
 import coreURL from '@ffmpeg/core?url';
 import wasmURL from '@ffmpeg/core/wasm?url';
 import { type LogEventCallback, type ProgressEventCallback } from '@ffmpeg/ffmpeg';
-import type { get_extension } from '$lib/utils';
 
-export class ffmpeg_manager {
+export class FFmpegManager {
     private ffmpeg_instance: FFmpeg | null = null;
     private ffmpeg_loaded: boolean = false;
 

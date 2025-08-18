@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Play, Pause, Square, Volume2, VolumeOff, Infinity, Repeat1 } from '@lucide/svelte';
 	import { type VideoData } from '$lib/components/splitter/splitter.svelte';
-	import { format_ffmpeg_time, approximately_equal } from '$lib/utils';
+	import { format_ffmpeg_time, approximately_equal } from '$lib/utils/utils';
 
 	interface VideoControlsProps {
 		video: HTMLVideoElement | null;

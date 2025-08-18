@@ -6,20 +6,27 @@
 		type x264Tune,
 		type VP8Bitrate,
 		x264PresetOptions,
+		x264PresetOptionsFormatted,
 		x264TuneOptions,
+		x264TuneOptionsFormatted,
 		vp8BitrateOptions
 	} from '$lib/ffmpeg/types';
 
 	type SettingsProps = {
 		export_settings?: ExportSettings;
+		is_image: boolean;
 	};
-	let { export_settings = $bindable() } = $props();
+	let { export_settings = $bindable(), is_image } = $props();
 
 	let x264_preset: x264Preset = $state('fast'); // Default preset for x264 encoding
 	let x264_tune: x264Tune = $state('none'); // Default tune for x264 encoding
 
 	let webm_bitrate: VP8Bitrate = $state('1M'); // Default bitrate for webm encoding
 	let output_format: OutputFormat = $state('mp4'); // Default output format
+
+	$effect(() => {
+		x264_tune = is_image ? 'stillimage' : 'none'; // Set tune based on whether the input is an image
+	});
 
 	$effect(() => {
 		if (output_format === 'mp4') {
@@ -74,10 +81,10 @@
 			<legend>Preset</legend>
 			<p>Slower will yield higher quality encodes.</p>
 			<div class="options">
-				{#each x264PresetOptions as p}
+				{#each x264PresetOptions as p, i}
 					<label>
 						<input type="radio" name="preset" value={p} bind:group={x264_preset} />
-						{p.charAt(0).toUpperCase() + p.slice(1)}
+						{x264PresetOptionsFormatted[i]}
 					</label>
 				{/each}
 			</div>
@@ -85,14 +92,14 @@
 		<fieldset>
 			<legend>Tune</legend>
 			<p>
-				Optimize the output for specific content types. <br />Pick 'stillimage' if your input is an
-				image rather than a video.
+				Optimize the output for specific content types. <br />Pick <i>Still Image</i> if your input is
+				an image file.
 			</p>
 			<div class="options">
-				{#each x264TuneOptions as t}
+				{#each x264TuneOptions as t, i}
 					<label>
 						<input type="radio" name="tune" value={t} bind:group={x264_tune} />
-						{t.charAt(0).toUpperCase() + t.slice(1)}
+						{x264TuneOptionsFormatted[i]}
 					</label>
 				{/each}
 			</div>

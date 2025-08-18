@@ -17,9 +17,11 @@ export type VP8ExportSettings = {
     bitrate: VP8Bitrate;
 }
 export const x264TuneOptions = ['none', 'film', 'animation', 'stillimage', 'zerolatency'] as const;
+export const x264TuneOptionsFormatted = ['None', 'Film', 'Animation', 'Still Image', 'Zero Latency'] as const;
 export type x264Tune = typeof x264TuneOptions[number];
 
 export const x264PresetOptions = ['ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium', 'slow', 'slower', 'veryslow'] as const;
+export const x264PresetOptionsFormatted = ['Ultra Fast', 'Super Fast', 'Very Fast', 'Faster', 'Fast', 'Medium', 'Slow', 'Slower', 'Very Slow'] as const;
 export type x264Preset = typeof x264PresetOptions[number];
 
 export const vp8BitrateOptions = ['256k', '512k', '1M', '2M', '4M', '8M'] as const;

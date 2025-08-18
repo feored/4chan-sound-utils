@@ -4,18 +4,21 @@
 	import byteSize from 'byte-size';
 	import { get_ffmpeg_parameters } from '$lib/ffmpeg/parameters/parameter_generator';
 	import type { Stream, ExportSettings } from '$lib/ffmpeg/types';
-	import { get_url, get_file_name } from '$lib/utils';
+	import { get_url, get_file_name, is_image } from '$lib/utils/files';
+	import { download_blob } from '$lib/utils/downloads';
 	import { toast } from '@zerodevx/svelte-toast';
 	import { fetchFile } from '@ffmpeg/util';
 	import { type LogEvent, type ProgressEvent } from '@ffmpeg/ffmpeg';
 	import { onMount } from 'svelte';
-	import { ffmpeg_manager as FFmpeg_manager } from '$lib/ffmpeg/ffmpeg.svelte';
+	import { FFmpegManager } from '$lib/ffmpeg/ffmpeg.svelte';
+	import { CircleAlert } from '@lucide/svelte';
+	import { MessageManager } from '$lib/utils/message_manager.svelte';
 
 	let final_video: Blob = $state<Blob>(new Blob()); // Final merged video blob
 
-	let loading_message = $state('');
+	const loading_message = new MessageManager();
+	const ffmpeg_manager = new FFmpegManager();
 	let ffmpeg_message = $state('');
-	let ffmpeg_manager: FFmpeg_manager;
 	let merge_state: 'ready' | 'loading' | 'finished' = $state('ready'); // State of the merge process
 	let current_file: File | null = $state(null);
 	let export_settings: ExportSettings = $state({
@@ -27,8 +30,6 @@
 	});
 
 	onMount(() => {
-		ffmpeg_manager = new FFmpeg_manager();
-
 		ffmpeg_manager
 			.init()
 			.then(() => {
@@ -44,10 +45,10 @@
 	$effect(() => {
 		if (current_file) {
 			// Reset states when a new file is selected
-			final_video = new Blob();
-			merge_state = 'ready';
-			loading_message = '';
-			ffmpeg_message = '';
+			reset();
+			if (!get_url(current_file.name)) {
+				toast.push(`No sound URL found for ${current_file.name}.`);
+			}
 		}
 	});
 
@@ -59,15 +60,14 @@
 
 	function listen_ffmpeg_progress(event: ProgressEvent) {
 		const progress = event.progress * 100; // Convert to percentage
-		loading_message = `Merging files... ${progress.toFixed(2)}%`;
+		loading_message.add('progress', `FFmpeg progress: ${progress.toFixed(2)}%`);
 	}
 
 	function reset() {
 		final_video = new Blob();
-		loading_message = '';
+		loading_message.reset();
 		ffmpeg_message = '';
 		merge_state = 'ready';
-		current_file = null;
 	}
 
 	async function merge() {
@@ -77,14 +77,13 @@
 			return;
 		}
 		merge_state = 'loading';
-		loading_message = 'Downloading sound...';
 		const sound = await download_sound(current_file.name);
 		if (!sound || !sound.blob) {
 			toast.push('Failed to extract sound from file.');
 			reset();
 			return;
 		}
-		loading_message = 'Launching ffmpeg...';
+		loading_message.add('launch', 'Launching ffmpeg...');
 		let video: Stream = {
 			name: current_file.name,
 			blob: current_file
@@ -108,9 +107,10 @@
 		await ffmpeg.writeFile(video.name, await fetchFile(video.blob));
 		await ffmpeg.writeFile(sound.name, await fetchFile(sound.blob));
 		let command = get_ffmpeg_parameters(video, sound, export_settings);
+		loading_message.add('ffmpeg_run', 'ffmpeg ' + command.join(' '));
 		console.log('Running ffmpeg command:', 'ffmpeg ' + command.join(' '));
 		await ffmpeg.exec(command);
-		const data = await ffmpeg.ffmpeg?.readFile(`output.${export_settings.output_format}`);
+		const data = await ffmpeg.readFile(`output.${export_settings.output_format}`);
 
 		const data_array = data as Uint8Array;
 		final_video = new Blob([data_array], { type: `video/${export_settings.output_format}` });
@@ -123,18 +123,11 @@
 			return null;
 		}
 		try {
-			console.log('Downloading sound from URL:', url);
-			const response = await fetch(url);
-			if (!response.ok) {
-				toast.push('Failed to download sound.');
-				return null;
-			}
-			const blob = await response.blob();
-			if (!blob) {
-				toast.push('No sound data received.');
-				return null;
-			}
-			return { blob, name: `${get_file_name(file_name)}.webm` };
+			const response = await download_blob(url, (progress: number) => {
+				loading_message.add('download', `Downloading sound... ${progress.toFixed(2)}%`);
+			});
+			const sound: Stream = { blob: response, name: `${encodeURIComponent(url)}` };
+			return sound;
 		} catch (error) {
 			console.error('Error downloading sound:', error);
 			toast.push(`Error downloading sound: ${error}`);
@@ -143,61 +136,56 @@
 	}
 </script>
 
-<article>
-	<header>
-		<h3>Merger</h3>
-		<small>
-			Downloads the linked sound file and merges it back into the video (or image). Useful for
-			archiving.
-		</small>
-	</header>
-	<Filepicker bind:current_file />
-	{#if current_file}
+<h3>Merger</h3>
+<small>
+	Downloads the linked sound file and merges it back into the video (or image). Useful for
+	archiving.
+</small>
+<Filepicker bind:current_file />
+{#if current_file}
+	{#if get_url(current_file.name)}
 		<br />
 		{#if merge_state === 'ready'}
-			<FfmpegExportSettings bind:export_settings />
+			<FfmpegExportSettings is_image={is_image(current_file.name)} bind:export_settings />
 			<button onclick={() => merge()}>Merge</button>
-		{:else if merge_state === 'loading'}
-			<article>
-				<p>{loading_message} <span class="loader"></span></p>
+		{:else}
+			<article class="loading-messages">
+				<ul>
+					{#each loading_message.messages as message, i}
+						<li>
+							{message}
+							{#if merge_state === 'loading' && i === loading_message.messages.length - 1}
+								<span class="loader"></span>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+				<br />
 				<code>{ffmpeg_message}</code>
 			</article>
-		{:else if merge_state === 'finished'}
-			<div>
-				<p>Final size: {byteSize(final_video.size, { units: 'iec' })}</p>
-				<video src={URL.createObjectURL(final_video)} controls />
-				<p>
-					<a
-						href={URL.createObjectURL(final_video)}
-						download="{get_file_name(current_file.name)}.webm"><button>Download</button></a
-					>
-				</p>
-			</div>
+			{#if merge_state === 'finished'}
+				<div class="media-container">
+					<p><code>Final size: {byteSize(final_video.size, { units: 'iec' })}</code></p>
+					<video src={URL.createObjectURL(final_video)} controls />
+					<p class="centered">
+						<a
+							href={URL.createObjectURL(final_video)}
+							download="{get_file_name(current_file.name)}.webm"><button>Download</button></a
+						>
+					</p>
+				</div>
+			{/if}
 		{/if}
+	{:else}
+		<p class="flash danger icon">
+			<CircleAlert /> Cannot find sound URL in file `{current_file.name}`.
+		</p>
 	{/if}
-</article>
+{/if}
 
 <style>
-	.loader {
-		width: 24px;
-		height: 24px;
-		border: 2px solid #fff;
-		border-bottom-color: transparent;
-		border-radius: 50%;
-		display: inline-block;
-		box-sizing: border-box;
-		animation: rotation 1s linear infinite;
-	}
-
-	@keyframes rotation {
-		0% {
-			transform: rotate(0deg);
-		}
-		100% {
-			transform: rotate(360deg);
-		}
-	}
-	video {
-		max-width: 50%;
+	.loading-messages {
+		font-family: var(--ft-mono);
+		font-size: 0.85rem;
 	}
 </style>

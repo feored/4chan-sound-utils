@@ -1,5 +1,5 @@
 import type { Stream, x264ExportSettings } from '../types';
-import { is_image } from '$lib/utils';
+import { is_image } from '$lib/utils/files';
 
 export function get_mp4_parameters(
     video_input: Stream,

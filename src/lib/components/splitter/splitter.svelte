@@ -22,8 +22,8 @@
 	import CanvasController from '$lib/components/splitter/crop/canvas_controller.svelte';
 
 	import { type Stream } from '$lib/ffmpeg/types';
-	import { ffmpeg_manager as FFmpeg_manager } from '$lib/ffmpeg/ffmpeg.svelte';
-	import { format_ffmpeg_time } from '$lib/utils';
+	import { FFmpegManager } from '$lib/ffmpeg/ffmpeg.svelte';
+	import { format_ffmpeg_time } from '$lib/utils/utils';
 	import { fetchFile } from '@ffmpeg/util';
 	import { toast } from '@zerodevx/svelte-toast';
 	import { type LogEvent, type ProgressEvent } from '@ffmpeg/ffmpeg';
@@ -33,15 +33,13 @@
 	let video: HTMLVideoElement | null = $state(null);
 	let video_data: VideoData = $state(default_video_data);
 	let last_seek_preview: boolean = $state(false);
-	let ffmpeg_manager: FFmpeg_manager;
+	const ffmpeg_manager = new FFmpegManager();
 
 	onMount(() => {
 		// Default ontimeupdate fires too slowly
 		setInterval(function () {
 			ontimeupdate(new Event('ontimeupdate'));
 		}, 50);
-
-		ffmpeg_manager = new FFmpeg_manager();
 
 		ffmpeg_manager
 			.init()
@@ -305,56 +303,47 @@
 	}
 </script>
 
-<article>
-	<header>
-		<h3>Splitter (WebM Maker)</h3>
-		<small>
-			Splits the audio from a video file and uploads it to one of the approved hosts, then removes
-			the audio from the video file.
-		</small>
-	</header>
-	<Filepicker bind:current_file accept_image={false} show_preview={false} />
+<h3>Splitter (WebM Maker)</h3>
+<small>
+	Splits the audio from a video file and uploads it to one of several hosts, then removes the audio
+	from the video file.
+</small>
+<Filepicker bind:current_file accept_image={false} show_preview={false} />
 
-	{#if current_file}
+{#if current_file}
+	<section>
 		<section>
-			<section>
-				<VideoControls {video} {video_data} />
-				<Seekbar {video_data} {on_seek} {on_start_seek} {on_end_seek} />
-			</section>
-			<div class="video-container">
-				<video
-					bind:this={video}
-					src={URL.createObjectURL(current_file)}
-					{ondurationchange}
-					{onresize}
-				>
-					Your browser does not support the video tag.
-				</video>
-				<CanvasController {video} />
-			</div>
+			<VideoControls {video} {video_data} />
+			<Seekbar {video_data} {on_seek} {on_start_seek} {on_end_seek} />
 		</section>
-		<button
-			onclick={() => {
-				split();
-			}}>Split</button
-		>
-		<article>
-			<p>{loading_message} <span class="loader"></span></p>
-			<code>{ffmpeg_message}</code>
-		</article>
+		<div class="media-container">
+			<video
+				bind:this={video}
+				src={URL.createObjectURL(current_file)}
+				{ondurationchange}
+				{onresize}
+			>
+				Your browser does not support the video tag.
+			</video>
+			<CanvasController {video} />
+		</div>
+	</section>
+	<button
+		onclick={() => {
+			split();
+		}}>Split</button
+	>
+	<article>
+		<p>{loading_message} <span class="loader"></span></p>
+		<code>{ffmpeg_message}</code>
+	</article>
 
-		<a
-			href={URL.createObjectURL(final_stream.blob)}
-			download={final_stream.name}
-			title="Download processedvideo"><button>Download</button></a
-		>
-	{/if}
-</article>
+	<a
+		href={URL.createObjectURL(final_stream.blob)}
+		download={final_stream.name}
+		title="Download processedvideo"><button>Download</button></a
+	>
+{/if}
 
 <style>
-	.video-container {
-		position: relative;
-		width: fit-content;
-		margin: auto;
-	}
 </style>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { get_file_type } from '$lib/utils';
+	import { get_file_type } from '$lib/utils/files';
 	import byteSize from 'byte-size';
 	const video_formats = ['video/mp4', 'video/webm'];
 	const image_formats = ['image/jpeg', 'image/png', 'image/gif'];
@@ -46,20 +46,22 @@
 		/>
 	</div>
 	{#if files}
-		{#each Array.from(files) as file}
-			<p><code>Original size: {byteSize(file.size, { units: 'iec' })}</code></p>
-			{#if show_preview}
-				{#if get_file_type(file.name) === 'video'}
-					<!-- svelte-ignore a11y_media_has_caption -->
-					<video controls>
-						<source src={URL.createObjectURL(file)} type={file.type} />
-						Your browser does not support the video tag.
-					</video>
-				{:else if get_file_type(file.name) === 'image'}
-					<img src={URL.createObjectURL(file)} alt="Selected image" />
+		<div class="media-container">
+			{#if current_file}
+				<p><code>Original size: {byteSize(current_file.size, { units: 'iec' })}</code></p>
+				{#if show_preview}
+					{#if get_file_type(current_file.name) === 'video'}
+						<!-- svelte-ignore a11y_media_has_caption -->
+						<video controls>
+							<source src={URL.createObjectURL(current_file)} type={current_file.type} />
+							Your browser does not support the video tag.
+						</video>
+					{:else if get_file_type(current_file.name) === 'image'}
+						<img src={URL.createObjectURL(current_file)} alt="Selected image" />
+					{/if}
 				{/if}
 			{/if}
-		{/each}
+		</div>
 	{/if}
 </div>
 

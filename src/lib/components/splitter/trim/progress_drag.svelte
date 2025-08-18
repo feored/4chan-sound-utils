@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { format_ffmpeg_time } from '$lib/utils';
+	import { format_ffmpeg_time } from '$lib/utils/utils';
 	import { on } from 'svelte/events';
 	interface DraggableProps {
 		progress: number;
