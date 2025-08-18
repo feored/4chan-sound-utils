@@ -35,7 +35,6 @@
 		if (seek_type === 'handle') {
 			on_seek?.(progress);
 		} else {
-			console.log('Previewing progress:', progress);
 			on_seek?.(progress, true); // Preview for brackets
 		}
 	}

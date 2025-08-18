@@ -113,7 +113,8 @@
 		}
 		video_data.progress = video.currentTime / video.duration;
 		video_data.current_time = video.currentTime;
-		if (video_data.progress < video_data.start_progress) {
+		if (video_data.progress < video_data.start_progress - 0.01) {
+			// Epsilon to avoid floating point issues
 			video.currentTime = video_data.start_progress * video.duration;
 		} else if (video_data.progress > video_data.end_progress) {
 			if (!video.loop) {
