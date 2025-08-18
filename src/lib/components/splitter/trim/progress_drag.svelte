@@ -135,7 +135,7 @@
 		border-color: var(--accent);
 	}
 	.handle {
-		width: 0.4rem;
+		width: 0.5rem;
 		background-color: var(--dark-danger);
 	}
 </style>

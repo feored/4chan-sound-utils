@@ -27,11 +27,19 @@
 	import { fetchFile } from '@ffmpeg/util';
 	import { toast } from '@zerodevx/svelte-toast';
 	import { type LogEvent, type ProgressEvent } from '@ffmpeg/ffmpeg';
+	import { onMount } from 'svelte';
 
 	let current_file: File | null = $state(null);
 	let video: HTMLVideoElement | null = $state(null);
 	let video_data: VideoData = $state(default_video_data);
 	let last_seek_preview: boolean = $state(false);
+
+	onMount(() => {
+		// Default ontimeupdate fires too slowly
+		setInterval(function () {
+			ontimeupdate(new Event('ontimeupdate'));
+		}, 50);
+	});
 
 	$effect(() => {
 		if (current_file) {
@@ -302,7 +310,6 @@
 					bind:this={video}
 					src={URL.createObjectURL(current_file)}
 					{ondurationchange}
-					{ontimeupdate}
 					{onresize}
 				>
 					Your browser does not support the video tag.

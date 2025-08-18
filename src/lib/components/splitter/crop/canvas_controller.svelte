@@ -12,8 +12,15 @@
 		p1: Point;
 	};
 
+	type Surface = {
+		origin: Point;
+		width: number;
+		height: number;
+	};
+
 	const OUTSIDE_COLOR = '#000000E6';
 	const HANDLE_SIZE = 12; // Size of the resize handles
+	const MIN_CROP = 64;
 </script>
 
 <script lang="ts">
@@ -30,7 +37,6 @@
 	let visible_handles = $state(false);
 	let previous_touch: Point = $state({ x: 0, y: 0 });
 	let active_handle: Direction | 'surface' = $state('NW');
-	let offset_top = $state(0);
 
 	let bounds = $state<Bounds>({
 		p0: { x: 0, y: 0 },
@@ -55,7 +61,6 @@
 			width: video.videoWidth,
 			height: video.videoHeight
 		};
-		offset_top = video.offsetTop;
 		bounds = {
 			p0: { x: 0, y: 0 },
 			p1: { x: dimensions.width, y: dimensions.height }
@@ -115,9 +120,9 @@
 
 	function draw_handles(context: CanvasRenderingContext2D): void {
 		if (!canvas) return;
-		context.fillStyle = '#FFF';
-		context.strokeStyle = '#111';
-		context.lineWidth = 2;
+		context.fillStyle = '#111';
+		context.strokeStyle = '#FFF';
+		context.lineWidth = 1;
 		const handles = get_handles_origins();
 		for (const direction of direction_options) {
 			const handle = handles[direction];
@@ -212,72 +217,70 @@
 			} else {
 				canvas.style.cursor = 'auto';
 			}
+			return;
+		}
+
+		const rect = canvas.getBoundingClientRect();
+		const x = event.clientX - rect.left;
+		const y = event.clientY - rect.top;
+
+		if (active_handle === 'surface') {
+			// If dragging on the surface, we can move the entire crop area
+			const deltaX = x - previous_touch.x;
+			const deltaY = y - previous_touch.y;
+			const new_bounds = {
+				p0: {
+					x: bounds.p0.x + deltaX,
+					y: bounds.p0.y + deltaY
+				},
+				p1: {
+					x: bounds.p1.x + deltaX,
+					y: bounds.p1.y + deltaY
+				}
+			};
+
+			if (new_bounds.p0.x > 0 && new_bounds.p1.x < dimensions.width) {
+				bounds.p0.x = new_bounds.p0.x;
+				bounds.p1.x = new_bounds.p1.x;
+			}
+			if (new_bounds.p0.y > 0 && new_bounds.p1.y < dimensions.height) {
+				bounds.p0.y = new_bounds.p0.y;
+				bounds.p1.y = new_bounds.p1.y;
+			}
+
+			previous_touch = { x, y };
 		} else {
-			const rect = canvas.getBoundingClientRect();
-			const x = event.clientX - rect.left;
-			const y = event.clientY - rect.top;
-
-			switch (active_handle) {
-				case 'NW':
-					bounds.p0.x = Math.max(0, Math.min(dimensions.width, x));
-					bounds.p0.y = Math.max(0, Math.min(dimensions.height, y));
-					break;
-				case 'N':
-					bounds.p0.y = Math.max(0, Math.min(dimensions.height, y));
-					break;
-				case 'NE':
-					bounds.p1.x = Math.max(0, Math.min(dimensions.width, x));
-					bounds.p0.y = Math.max(0, Math.min(dimensions.height, y));
-					break;
-				case 'W':
-					bounds.p0.x = Math.max(0, Math.min(dimensions.width, x));
-					break;
-				case 'E':
-					bounds.p1.x = Math.max(0, Math.min(dimensions.width, x));
-					break;
-				case 'SW':
-					bounds.p0.x = Math.max(0, Math.min(dimensions.width, x));
-					bounds.p1.y = Math.max(0, Math.min(dimensions.height, y));
-					break;
-				case 'S':
-					bounds.p1.y = Math.max(0, Math.min(dimensions.height, y));
-					break;
-				case 'SE':
-					bounds.p1.x = Math.max(0, Math.min(dimensions.width, x));
-					bounds.p1.y = Math.max(0, Math.min(dimensions.height, y));
-					break;
-				case 'surface':
-					// If dragging on the surface, we can move the entire crop area
-					const deltaX = x - previous_touch.x;
-					const deltaY = y - previous_touch.y;
-					const new_bounds = {
-						p0: {
-							x: bounds.p0.x + deltaX,
-							y: bounds.p0.y + deltaY
-						},
-						p1: {
-							x: bounds.p1.x + deltaX,
-							y: bounds.p1.y + deltaY
-						}
-					};
-
-					if (new_bounds.p0.x > 0 && new_bounds.p1.x < dimensions.width) {
-						bounds.p0.x = new_bounds.p0.x;
-						bounds.p1.x = new_bounds.p1.x;
-					}
-					if (new_bounds.p0.y > 0 && new_bounds.p1.y < dimensions.height) {
-						bounds.p0.y = new_bounds.p0.y;
-						bounds.p1.y = new_bounds.p1.y;
-					}
-
-					previous_touch = { x, y };
+			let new_bounds = {
+				p0: { ...bounds.p0 },
+				p1: { ...bounds.p1 }
+			} as Bounds;
+			if (active_handle.includes('N')) {
+				new_bounds.p0.y = Math.max(0, Math.min(bounds.p1.y, y));
+			} else if (active_handle.includes('S')) {
+				new_bounds.p1.y = Math.max(0, Math.max(bounds.p0.y, y));
 			}
 
-			// Redraw the canvas
-			const context = canvas.getContext('2d');
-			if (context) {
-				draw();
+			if (new_bounds.p1.y - new_bounds.p0.y >= MIN_CROP) {
+				bounds.p0.y = new_bounds.p0.y;
+				bounds.p1.y = new_bounds.p1.y;
 			}
+
+			if (active_handle.includes('W')) {
+				new_bounds.p0.x = Math.max(0, Math.min(bounds.p1.x, x));
+			} else if (active_handle.includes('E')) {
+				new_bounds.p1.x = Math.max(0, Math.max(bounds.p0.x, x));
+			}
+
+			if (new_bounds.p1.x - new_bounds.p0.x >= MIN_CROP) {
+				bounds.p0.x = new_bounds.p0.x;
+				bounds.p1.x = new_bounds.p1.x;
+			}
+		}
+
+		// Redraw the canvas
+		const context = canvas.getContext('2d');
+		if (context) {
+			draw();
 		}
 	}
 
@@ -290,11 +293,26 @@
 			visible_handles = false;
 		}
 	}
+
+	function calc_crop(): Surface {
+		if (!canvas || !video) return { origin: { x: 0, y: 0 }, width: 0, height: 0 };
+		const ratio = video.videoWidth / video.offsetWidth;
+		const crop_width = Math.round((bounds.p1.x - bounds.p0.x) * ratio);
+		const crop_height = Math.round((bounds.p1.y - bounds.p0.y) * ratio);
+		const crop_origin = {
+			x: Math.round(bounds.p0.x * ratio),
+			y: Math.round(bounds.p0.y * ratio) // Adjust for the canvas offset
+		};
+		return {
+			origin: crop_origin,
+			width: crop_width,
+			height: crop_height
+		};
+	}
 </script>
 
 <svelte:document {onmouseup} {onmousemove} />
 <canvas
-	style:top={offset_top + 'px'}
 	{onmousedown}
 	{onmouseenter}
 	{onmouseleave}
@@ -302,21 +320,17 @@
 	width={dimensions.width}
 	height={dimensions.height}
 ></canvas>
-{#if dragging}
-	<div class="p-.5 cursor-follow flash bg-accent bd-accent">
-		Viewport Resolution: {bounds.p1.x - bounds.p0.x} * {bounds.p1.y - bounds.p0.y}
+<div class="flex">
+	<div class="p-.5 mono-text flash bd-accent">
+		Cropped: {calc_crop().width} x {calc_crop().height}
 	</div>
-{/if}
-<p>
-	<code>Resolution: {real_dimensions.width} * {real_dimensions.height}</code>
-</p>
+	<div class="p-.5 mono-text flash bd-muted">
+		Original: {real_dimensions.width} x {real_dimensions.height}
+	</div>
+</div>
 
 <style>
-	.cursor-follow {
-		position: absolute;
-		top: 0;
-		left: 0;
-		z-index: 100;
+	.mono-text {
 		font-family: var(--ft-mono);
 		font-size: 0.85rem;
 	}
