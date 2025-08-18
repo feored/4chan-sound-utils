@@ -6,10 +6,9 @@
 		duration: number;
 		seek_type: 'handle' | 'left_bracket' | 'right_bracket';
 		seekbar: HTMLDivElement;
-		on_preview?: (progress: number) => void;
-		on_seek?: (progress: number) => void;
+		on_seek?: (progress: number, preview?: boolean) => void;
 	}
-	let { progress, seek_type, duration, seekbar, on_preview, on_seek }: DraggableProps = $props();
+	let { progress, seek_type, duration, seekbar, on_seek }: DraggableProps = $props();
 
 	let dragging = $state(false);
 	let self: HTMLDivElement | null = $state(null);
@@ -36,7 +35,8 @@
 		if (seek_type === 'handle') {
 			on_seek?.(progress);
 		} else {
-			on_preview?.(progress);
+			console.log('Previewing progress:', progress);
+			on_seek?.(progress, true); // Preview for brackets
 		}
 	}
 
@@ -51,7 +51,7 @@
 		if (seek_type === 'handle') {
 			on_seek?.(progress);
 		} else {
-			on_preview?.(progress);
+			on_seek?.(progress, true); // Preview for brackets
 		}
 	}
 

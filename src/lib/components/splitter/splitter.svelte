@@ -58,35 +58,34 @@
 		loading_message = `Splitting video... ${progress.toFixed(2)}%`;
 	}
 
-	function on_start_seek(progress: number) {
+	function on_start_seek(progress: number, preview = false) {
 		video_data.start_progress = progress;
 		if (video_data.start_progress > video_data.end_progress) {
 			video_data.end_progress = video_data.start_progress + 0.05;
 		}
 		if (!video) return;
+		if (preview) {
+			video.currentTime = progress * video.duration;
+			last_seek_preview = true;
+		}
 		if (video_data.progress < video_data.start_progress) {
 			video_data.progress = video_data.start_progress;
-			video.currentTime = video_data.progress * video.duration;
 		}
 	}
 
-	function on_end_seek(progress: number) {
+	function on_end_seek(progress: number, preview = false) {
 		video_data.end_progress = progress;
 		if (video_data.end_progress < video_data.start_progress) {
 			video_data.start_progress = video_data.end_progress - 0.05;
 		}
 		if (!video) return;
+		if (preview) {
+			video.currentTime = progress * video.duration;
+			last_seek_preview = true;
+		}
 		if (video_data.progress > video_data.end_progress) {
 			video_data.progress = video_data.end_progress;
-			video.currentTime = video_data.progress * video.duration;
 		}
-	}
-
-	function on_preview(progress: number) {
-		if (!video) return;
-		if (isNaN(video.duration)) return;
-		video.currentTime = progress * video.duration;
-		last_seek_preview = true;
 	}
 
 	function on_seek(progress: number) {
@@ -108,7 +107,10 @@
 
 	function ontimeupdate(_event: Event) {
 		if (!video) return;
-		if (last_seek_preview) return;
+		if (last_seek_preview) {
+			last_seek_preview = false;
+			return;
+		}
 		video_data.progress = video.currentTime / video.duration;
 		video_data.current_time = video.currentTime;
 		if (video_data.progress < video_data.start_progress) {
@@ -291,7 +293,7 @@
 		<hr />
 		<section style="width:100%">
 			<VideoControls {video} {video_data} />
-			<Seekbar {on_preview} {video_data} {on_seek} {on_start_seek} {on_end_seek} />
+			<Seekbar {video_data} {on_seek} {on_start_seek} {on_end_seek} />
 		</section>
 		<section>
 			<div class="video-container">
