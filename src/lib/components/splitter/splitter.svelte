@@ -290,13 +290,13 @@
 		</small>
 	</header>
 	<Filepicker bind:current_file accept_image={false} show_preview={false} />
+
 	{#if current_file}
-		<hr />
-		<section style="width:100%">
-			<VideoControls {video} {video_data} />
-			<Seekbar {video_data} {on_seek} {on_start_seek} {on_end_seek} />
-		</section>
 		<section>
+			<section>
+				<VideoControls {video} {video_data} />
+				<Seekbar {video_data} {on_seek} {on_start_seek} {on_end_seek} />
+			</section>
 			<div class="video-container">
 				<video
 					bind:this={video}

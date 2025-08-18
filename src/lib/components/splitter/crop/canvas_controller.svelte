@@ -25,10 +25,12 @@
 
 	let canvas = $state<HTMLCanvasElement | null>(null);
 	let dimensions = $state({ width: 0, height: 0 });
+	let real_dimensions = $state({ width: 0, height: 0 });
 	let dragging = $state(false);
 	let visible_handles = $state(false);
 	let previous_touch: Point = $state({ x: 0, y: 0 });
 	let active_handle: Direction | 'surface' = $state('NW');
+	let offset_top = $state(0);
 
 	let bounds = $state<Bounds>({
 		p0: { x: 0, y: 0 },
@@ -38,15 +40,22 @@
 	// Reset when a new video is loaded
 	$effect(() => {
 		if (video) {
+			console.dir(video);
 			video.addEventListener('loadedmetadata', reset);
 		}
 	});
 
 	function reset(): void {
+		if (!canvas || !video) return;
 		dimensions = {
-			width: video ? video.offsetWidth : 0,
-			height: video ? video.offsetHeight : 0
+			width: video.offsetWidth,
+			height: video.offsetHeight
 		};
+		real_dimensions = {
+			width: video.videoWidth,
+			height: video.videoHeight
+		};
+		offset_top = video.offsetTop;
 		bounds = {
 			p0: { x: 0, y: 0 },
 			p1: { x: dimensions.width, y: dimensions.height }
@@ -285,6 +294,7 @@
 
 <svelte:document {onmouseup} {onmousemove} />
 <canvas
+	style:top={offset_top + 'px'}
 	{onmousedown}
 	{onmouseenter}
 	{onmouseleave}
@@ -292,8 +302,25 @@
 	width={dimensions.width}
 	height={dimensions.height}
 ></canvas>
+{#if dragging}
+	<div class="p-.5 cursor-follow flash bg-accent bd-accent">
+		Viewport Resolution: {bounds.p1.x - bounds.p0.x} * {bounds.p1.y - bounds.p0.y}
+	</div>
+{/if}
+<p>
+	<code>Resolution: {real_dimensions.width} * {real_dimensions.height}</code>
+</p>
 
 <style>
+	.cursor-follow {
+		position: absolute;
+		top: 0;
+		left: 0;
+		z-index: 100;
+		font-family: var(--ft-mono);
+		font-size: 0.85rem;
+	}
+
 	canvas {
 		touch-action: none;
 		position: absolute;

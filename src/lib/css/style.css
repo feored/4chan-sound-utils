@@ -1,0 +1,7 @@
+body {
+  max-width: max(75%, var(--ct-width));
+}
+
+section {
+  max-width: 100%;
+}

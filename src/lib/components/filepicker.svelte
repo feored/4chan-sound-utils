@@ -36,7 +36,7 @@
 
 <div>
 	<div class="flash bd-muted bg-accent">
-		<label for="source_media" style="font-weight:bold;">Upload a video or image.</label>
+		<label for="source_media" style="font-weight:bold;">Upload a video or image</label>
 		<input
 			accept={accepted_formats.join(',')}
 			bind:files
@@ -47,7 +47,7 @@
 	</div>
 	{#if files}
 		{#each Array.from(files) as file}
-			<!-- <p>Original size: {byteSize(file.size, { units: 'iec' })}</p> -->
+			<p><code>Original size: {byteSize(file.size, { units: 'iec' })}</code></p>
 			{#if show_preview}
 				{#if get_file_type(file.name) === 'video'}
 					<!-- svelte-ignore a11y_media_has_caption -->
