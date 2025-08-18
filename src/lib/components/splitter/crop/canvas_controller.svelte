@@ -120,8 +120,8 @@
 
 	function draw_handles(context: CanvasRenderingContext2D): void {
 		if (!canvas) return;
-		context.fillStyle = '#111';
-		context.strokeStyle = '#FFF';
+		context.fillStyle = '#FFF';
+		context.strokeStyle = '#111';
 		context.lineWidth = 1;
 		const handles = get_handles_origins();
 		for (const direction of direction_options) {
@@ -157,7 +157,13 @@
 		return handles;
 	}
 
-	function get_potential_handle({ x, y }: { x: number; y: number }): Direction | 'surface' | null {
+	function get_overlapping_handle({
+		x,
+		y
+	}: {
+		x: number;
+		y: number;
+	}): Direction | 'surface' | null {
 		const handles = get_handles_origins();
 		for (const direction of direction_options) {
 			const handle = handles[direction];
@@ -181,16 +187,16 @@
 		const rect = canvas.getBoundingClientRect();
 		const x = event.clientX - rect.left;
 		const y = event.clientY - rect.top;
-		const potential_handle = get_potential_handle({ x, y });
-		if (potential_handle) {
-			if (potential_handle === 'surface') {
+		const overlap_handle = get_overlapping_handle({ x, y });
+		if (overlap_handle) {
+			if (overlap_handle === 'surface') {
 				canvas.style.cursor = 'move';
 				previous_touch = { x, y };
 			} else {
-				canvas.style.cursor = `${potential_handle}-resize`;
+				canvas.style.cursor = `${overlap_handle}-resize`;
 			}
 			dragging = true;
-			active_handle = potential_handle;
+			active_handle = overlap_handle;
 			return;
 		}
 	}
@@ -207,15 +213,18 @@
 			const rect = canvas.getBoundingClientRect();
 			const x = event.clientX - rect.left;
 			const y = event.clientY - rect.top;
-			const potential_handle = get_potential_handle({ x, y });
-			if (potential_handle) {
-				if (potential_handle === 'surface') {
+			const overlap_handle = get_overlapping_handle({ x, y });
+			if (overlap_handle) {
+				if (overlap_handle === 'surface') {
 					canvas.style.cursor = 'move';
+					visible_handles = true;
 				} else {
-					canvas.style.cursor = `${potential_handle}-resize`;
+					canvas.style.cursor = `${overlap_handle}-resize`;
+					visible_handles = false;
 				}
 			} else {
 				canvas.style.cursor = 'auto';
+				visible_handles = false;
 			}
 			return;
 		}
@@ -257,7 +266,7 @@
 			if (active_handle.includes('N')) {
 				new_bounds.p0.y = Math.max(0, Math.min(bounds.p1.y, y));
 			} else if (active_handle.includes('S')) {
-				new_bounds.p1.y = Math.max(0, Math.max(bounds.p0.y, y));
+				new_bounds.p1.y = Math.min(dimensions.height, Math.max(bounds.p0.y, y));
 			}
 
 			if (new_bounds.p1.y - new_bounds.p0.y >= MIN_CROP) {
@@ -268,7 +277,7 @@
 			if (active_handle.includes('W')) {
 				new_bounds.p0.x = Math.max(0, Math.min(bounds.p1.x, x));
 			} else if (active_handle.includes('E')) {
-				new_bounds.p1.x = Math.max(0, Math.max(bounds.p0.x, x));
+				new_bounds.p1.x = Math.min(dimensions.width, Math.max(bounds.p0.x, x));
 			}
 
 			if (new_bounds.p1.x - new_bounds.p0.x >= MIN_CROP) {
@@ -282,10 +291,6 @@
 		if (context) {
 			draw();
 		}
-	}
-
-	function onmouseenter(): void {
-		visible_handles = true;
 	}
 
 	function onmouseleave(): void {
@@ -320,7 +325,7 @@
 	width={dimensions.width}
 	height={dimensions.height}
 ></canvas>
-<div class="flex">
+<div class="flex" style="justify-content: space-between;">
 	<div class="p-.5 mono-text flash bd-accent">
 		Cropped: {calc_crop().width} x {calc_crop().height}
 	</div>

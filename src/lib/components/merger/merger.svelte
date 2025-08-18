@@ -1,6 +1,8 @@
 <script lang="ts">
 	import Filepicker from '$lib/components/filepicker.svelte';
 	import FfmpegExportSettings from './ffmpeg_export_settings.svelte';
+	import Preview from './preview.svelte';
+	import MessageViewer from '../message_viewer.svelte';
 	import byteSize from 'byte-size';
 	import { get_ffmpeg_parameters } from '$lib/ffmpeg/parameters/parameter_generator';
 	import type { Stream, ExportSettings } from '$lib/ffmpeg/types';
@@ -8,7 +10,6 @@
 	import { download_blob } from '$lib/utils/downloads';
 	import { toast } from '@zerodevx/svelte-toast';
 	import { fetchFile } from '@ffmpeg/util';
-	import { type LogEvent, type ProgressEvent } from '@ffmpeg/ffmpeg';
 	import { onMount } from 'svelte';
 	import { FFmpegManager } from '$lib/ffmpeg/ffmpeg.svelte';
 	import { CircleAlert } from '@lucide/svelte';
@@ -16,9 +17,8 @@
 
 	let final_video: Blob = $state<Blob>(new Blob()); // Final merged video blob
 
-	const loading_message = new MessageManager();
+	const message_manager = new MessageManager();
 	const ffmpeg_manager = new FFmpegManager();
-	let ffmpeg_message = $state('');
 	let merge_state: 'ready' | 'loading' | 'finished' = $state('ready'); // State of the merge process
 	let current_file: File | null = $state(null);
 	let export_settings: ExportSettings = $state({
@@ -30,43 +30,19 @@
 	});
 
 	onMount(() => {
-		ffmpeg_manager
-			.init()
-			.then(() => {
-				console.log('FFmpeg initialized successfully.');
-				ffmpeg_manager.manage_listeners(true, listen_ffmpeg_message, listen_ffmpeg_progress);
-			})
-			.catch((error) => {
-				console.error('Error initializing FFmpeg:', error);
-				toast.push(`Error initializing FFmpeg: ${error}`);
-			});
+		ffmpeg_manager.init();
 	});
 
 	$effect(() => {
 		if (current_file) {
 			// Reset states when a new file is selected
 			reset();
-			if (!get_url(current_file.name)) {
-				toast.push(`No sound URL found for ${current_file.name}.`);
-			}
 		}
 	});
 
-	function listen_ffmpeg_message(event: LogEvent) {
-		let formatted_message = `[${event.type}]: ${event.message}`;
-		console.log(formatted_message);
-		ffmpeg_message = formatted_message;
-	}
-
-	function listen_ffmpeg_progress(event: ProgressEvent) {
-		const progress = event.progress * 100; // Convert to percentage
-		loading_message.add('progress', `FFmpeg progress: ${progress.toFixed(2)}%`);
-	}
-
 	function reset() {
 		final_video = new Blob();
-		loading_message.reset();
-		ffmpeg_message = '';
+		message_manager.reset();
 		merge_state = 'ready';
 	}
 
@@ -83,7 +59,7 @@
 			reset();
 			return;
 		}
-		loading_message.add('launch', 'Launching ffmpeg...');
+		message_manager.add('launch', 'Launching ffmpeg...');
 		let video: Stream = {
 			name: current_file.name,
 			blob: current_file
@@ -95,7 +71,6 @@
 			reset();
 			return;
 		}
-		toast.push('FFmpeg finished.');
 		merge_state = 'finished';
 	}
 
@@ -107,8 +82,7 @@
 		await ffmpeg.writeFile(video.name, await fetchFile(video.blob));
 		await ffmpeg.writeFile(sound.name, await fetchFile(sound.blob));
 		let command = get_ffmpeg_parameters(video, sound, export_settings);
-		loading_message.add('ffmpeg_run', 'ffmpeg ' + command.join(' '));
-		console.log('Running ffmpeg command:', 'ffmpeg ' + command.join(' '));
+		message_manager.add('ffmpeg_run', 'ffmpeg ' + command.join(' '));
 		await ffmpeg.exec(command);
 		const data = await ffmpeg.readFile(`output.${export_settings.output_format}`);
 
@@ -124,7 +98,7 @@
 		}
 		try {
 			const response = await download_blob(url, (progress: number) => {
-				loading_message.add('download', `Downloading sound... ${progress.toFixed(2)}%`);
+				message_manager.add('download', `Downloading sound... ${progress.toFixed(2)}%`);
 			});
 			const sound: Stream = { blob: response, name: `${encodeURIComponent(url)}` };
 			return sound;
@@ -136,35 +110,21 @@
 	}
 </script>
 
-<h3>Merger</h3>
-<small>
-	Downloads the linked sound file and merges it back into the video (or image). Useful for
-	archiving.
-</small>
 <Filepicker bind:current_file />
 {#if current_file}
 	{#if get_url(current_file.name)}
-		<br />
 		{#if merge_state === 'ready'}
-			<FfmpegExportSettings is_image={is_image(current_file.name)} bind:export_settings />
-			<button onclick={() => merge()}>Merge</button>
+			<Preview {current_file} />
+			<div>
+				<FfmpegExportSettings is_image={is_image(current_file.name)} bind:export_settings />
+				<button onclick={() => merge()}>Merge</button>
+			</div>
 		{:else}
-			<article class="loading-messages">
-				<ul>
-					{#each loading_message.messages as message, i}
-						<li>
-							{message}
-							{#if merge_state === 'loading' && i === loading_message.messages.length - 1}
-								<span class="loader"></span>
-							{/if}
-						</li>
-					{/each}
-				</ul>
-				<br />
-				<code>{ffmpeg_message}</code>
-			</article>
+			<MessageViewer {message_manager} {ffmpeg_manager} />
+
 			{#if merge_state === 'finished'}
-				<div class="media-container">
+				<div class="flash bd-accent">
+					<p><b>Output</b></p>
 					<p><code>Final size: {byteSize(final_video.size, { units: 'iec' })}</code></p>
 					<video src={URL.createObjectURL(final_video)} controls />
 					<p class="centered">
@@ -180,12 +140,16 @@
 		<p class="flash danger icon">
 			<CircleAlert /> Cannot find sound URL in file `{current_file.name}`.
 		</p>
+		<Preview {current_file} />
 	{/if}
+{:else}
+	<div class="flash bg-muted bd-muted">
+		<p><b>Instructions</b></p>
+		<p>
+			Upload a .webm file containing a [sound=URL] link in the filename.<br />
+			Example: <code> video[sound=https://example.com/sound.mp3].webm</code><br /> This tool
+			downloads the linked sound file and merges it back into the video file for easy viewing.<br
+			/>This is also useful for archival in case the file hosts go down.
+		</p>
+	</div>
 {/if}
-
-<style>
-	.loading-messages {
-		font-family: var(--ft-mono);
-		font-size: 0.85rem;
-	}
-</style>

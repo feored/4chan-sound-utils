@@ -48,8 +48,8 @@
 	});
 </script>
 
-<div class="flash bd-accent">
-	<h3 class="flash">FFmpeg settings</h3>
+<div class="flash bd-muted">
+	<p><b>FFmpeg settings</b></p>
 	<fieldset>
 		<legend>Output format</legend>
 		<p>MP4 highly recommended.</p>

@@ -2,19 +2,18 @@
 export class MessageManager {
 
     private ids: string[] = [];
-    private _messages: Record<string, string> = $state({});
-    public messages: string[] = $derived(Object.values(this._messages));
-
+    public messages: Record<string, string> = $state({});
 
     add(id: string, message: string): void {
         if (!this.ids.includes(id)) {
             this.ids.push(id);
         }
-        this._messages = { ...this._messages, [id]: message };
+        this.messages = { ...this.messages, [id]: message };
+        console.log(`${message} (${id})`);
     }
 
     reset(): void {
         this.ids = [];
-        this._messages = {};
+        this.messages = {};
     }
 }
