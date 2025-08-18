@@ -2,34 +2,49 @@ import { FFmpeg } from '@ffmpeg/ffmpeg';
 import coreURL from '@ffmpeg/core?url';
 import wasmURL from '@ffmpeg/core/wasm?url';
 import { type LogEventCallback, type ProgressEventCallback } from '@ffmpeg/ffmpeg';
+import type { get_extension } from '$lib/utils';
 
-export let ffmpeg: FFmpeg;
-let ffmpeg_loaded: boolean = $state(false);
-let ffmpeg_busy: boolean = $state(false);
+export class ffmpeg_manager {
+    private ffmpeg_instance: FFmpeg | null = null;
+    private ffmpeg_loaded: boolean = false;
 
-export function is_ffmpeg_loaded(): boolean {
-    return ffmpeg_loaded;
-}
+    public get_instance(): FFmpeg | null {
+        return this.ffmpeg_instance;
+    }
 
-export function set_ffmpeg_busy(busy: boolean) {
-    ffmpeg_busy = busy;
-}
+    // Check if FFmpeg is loaded
+    public is_loaded(): boolean {
+        return this.ffmpeg_loaded;
+    }
 
-export function is_ffmpeg_busy(): boolean {
-    return ffmpeg_busy;
-}
+    // Initialize FFmpeg
+    public async init(): Promise<void> {
+        if (this.ffmpeg_loaded) return;
 
-export async function init_ffmpeg() {
-    if (ffmpeg_loaded) return;
-    ffmpeg = new FFmpeg();
-    await ffmpeg.load({ coreURL, wasmURL });
-    console.log('FFmpeg loaded successfully.');
-    ffmpeg_loaded = true;
-}
+        try {
+            this.ffmpeg_instance = new FFmpeg();
+            await this.ffmpeg_instance.load({ coreURL, wasmURL });
+            console.log('FFmpeg loaded successfully.');
+            this.ffmpeg_loaded = true;
+        } catch (error) {
+            console.error('Failed to load FFmpeg:', error);
+            throw error;
+        }
+    }
 
-export function listen(listen: boolean, log_func: LogEventCallback, progress_func: ProgressEventCallback) {
-    // add or remove ffmpeg listeners based on the action parameter
-    let action: 'on' | 'off' = listen ? 'on' : 'off';
-    ffmpeg[action]('log', log_func);
-    ffmpeg[action]('progress', progress_func);
+    // Add or remove event listeners
+    public manage_listeners(
+        listen: boolean,
+        log_callback: LogEventCallback,
+        progress_callback: ProgressEventCallback
+    ): void {
+        if (!this.ffmpeg_instance) {
+            console.error('FFmpeg is not initialized.');
+            return;
+        }
+
+        const action: 'on' | 'off' = listen ? 'on' : 'off';
+        this.ffmpeg_instance[action]('log', log_callback);
+        this.ffmpeg_instance[action]('progress', progress_callback);
+    }
 }

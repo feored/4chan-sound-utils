@@ -3,17 +3,19 @@
 	import FfmpegExportSettings from './ffmpeg_export_settings.svelte';
 	import byteSize from 'byte-size';
 	import { get_ffmpeg_parameters } from '$lib/ffmpeg/parameters/parameter_generator';
-	import { ffmpeg, set_ffmpeg_busy, is_ffmpeg_busy, listen } from '$lib/ffmpeg/ffmpeg.svelte';
 	import type { Stream, ExportSettings } from '$lib/ffmpeg/types';
 	import { get_url, get_file_name } from '$lib/utils';
 	import { toast } from '@zerodevx/svelte-toast';
 	import { fetchFile } from '@ffmpeg/util';
 	import { type LogEvent, type ProgressEvent } from '@ffmpeg/ffmpeg';
+	import { onMount } from 'svelte';
+	import { ffmpeg_manager as FFmpeg_manager } from '$lib/ffmpeg/ffmpeg.svelte';
 
 	let final_video: Blob = $state<Blob>(new Blob()); // Final merged video blob
 
 	let loading_message = $state('');
 	let ffmpeg_message = $state('');
+	let ffmpeg_manager: FFmpeg_manager;
 	let merge_state: 'ready' | 'loading' | 'finished' = $state('ready'); // State of the merge process
 	let current_file: File | null = $state(null);
 	let export_settings: ExportSettings = $state({
@@ -22,6 +24,21 @@
 			preset: 'fast',
 			tune: 'none'
 		}
+	});
+
+	onMount(() => {
+		ffmpeg_manager = new FFmpeg_manager();
+
+		ffmpeg_manager
+			.init()
+			.then(() => {
+				console.log('FFmpeg initialized successfully.');
+				ffmpeg_manager.manage_listeners(true, listen_ffmpeg_message, listen_ffmpeg_progress);
+			})
+			.catch((error) => {
+				console.error('Error initializing FFmpeg:', error);
+				toast.push(`Error initializing FFmpeg: ${error}`);
+			});
 	});
 
 	$effect(() => {
@@ -51,7 +68,6 @@
 		ffmpeg_message = '';
 		merge_state = 'ready';
 		current_file = null;
-		listen(false, listen_ffmpeg_message, listen_ffmpeg_progress);
 	}
 
 	async function merge() {
@@ -61,7 +77,6 @@
 			return;
 		}
 		merge_state = 'loading';
-		listen(true, listen_ffmpeg_message, listen_ffmpeg_progress);
 		loading_message = 'Downloading sound...';
 		const sound = await download_sound(current_file.name);
 		if (!sound || !sound.blob) {
@@ -82,19 +97,20 @@
 			return;
 		}
 		toast.push('FFmpeg finished.');
-		listen(false, listen_ffmpeg_message, listen_ffmpeg_progress);
 		merge_state = 'finished';
 	}
 
 	async function ffmpeg_merge(video: Stream, sound: Stream) {
-		set_ffmpeg_busy(true);
+		const ffmpeg = ffmpeg_manager.get_instance();
+		if (!ffmpeg) {
+			return;
+		}
 		await ffmpeg.writeFile(video.name, await fetchFile(video.blob));
 		await ffmpeg.writeFile(sound.name, await fetchFile(sound.blob));
 		let command = get_ffmpeg_parameters(video, sound, export_settings);
 		console.log('Running ffmpeg command:', 'ffmpeg ' + command.join(' '));
 		await ffmpeg.exec(command);
-		const data = await ffmpeg.readFile(`output.${export_settings.output_format}`);
-		set_ffmpeg_busy(false);
+		const data = await ffmpeg.ffmpeg?.readFile(`output.${export_settings.output_format}`);
 
 		const data_array = data as Uint8Array;
 		final_video = new Blob([data_array], { type: `video/${export_settings.output_format}` });
@@ -140,11 +156,7 @@
 		<br />
 		{#if merge_state === 'ready'}
 			<FfmpegExportSettings bind:export_settings />
-			{#if is_ffmpeg_busy()}
-				<p>FFmpeg is busy. Please wait...</p>
-			{:else}
-				<button onclick={() => merge()}>Merge</button>
-			{/if}
+			<button onclick={() => merge()}>Merge</button>
 		{:else if merge_state === 'loading'}
 			<article>
 				<p>{loading_message} <span class="loader"></span></p>

@@ -21,9 +21,9 @@
 	import VideoControls from '$lib/components/splitter/video_controls.svelte';
 	import CanvasController from '$lib/components/splitter/crop/canvas_controller.svelte';
 
-	import { type Stream } from '$lib/ffmpeg/ffmpeg_types';
+	import { type Stream } from '$lib/ffmpeg/types';
+	import { ffmpeg_manager as FFmpeg_manager } from '$lib/ffmpeg/ffmpeg.svelte';
 	import { format_ffmpeg_time } from '$lib/utils';
-	import { ffmpeg, set_ffmpeg_busy, is_ffmpeg_busy, listen } from '$lib/ffmpeg/ffmpeg.svelte';
 	import { fetchFile } from '@ffmpeg/util';
 	import { toast } from '@zerodevx/svelte-toast';
 	import { type LogEvent, type ProgressEvent } from '@ffmpeg/ffmpeg';
@@ -33,12 +33,26 @@
 	let video: HTMLVideoElement | null = $state(null);
 	let video_data: VideoData = $state(default_video_data);
 	let last_seek_preview: boolean = $state(false);
+	let ffmpeg_manager: FFmpeg_manager;
 
 	onMount(() => {
 		// Default ontimeupdate fires too slowly
 		setInterval(function () {
 			ontimeupdate(new Event('ontimeupdate'));
 		}, 50);
+
+		ffmpeg_manager = new FFmpeg_manager();
+
+		ffmpeg_manager
+			.init()
+			.then(() => {
+				console.log('FFmpeg initialized successfully.');
+				ffmpeg_manager.manage_listeners(true, listen_ffmpeg_message, listen_ffmpeg_progress);
+			})
+			.catch((error) => {
+				console.error('Error initializing FFmpeg:', error);
+				toast.push(`Error initializing FFmpeg: ${error}`);
+			});
 	});
 
 	$effect(() => {
@@ -175,7 +189,10 @@
 		if (!current_file) {
 			return;
 		}
-		set_ffmpeg_busy(true);
+		const ffmpeg = ffmpeg_manager.get_instance();
+		if (!ffmpeg) {
+			return;
+		}
 		console.log('Extracting audio from video:', current_file.name);
 		await ffmpeg.writeFile(current_file.name, await fetchFile(current_file));
 		console.log('wrote file to ffmpeg:', current_file.name);
@@ -201,7 +218,6 @@
 		console.log('Executed ffmpeg command: ffmpeg', command.join(' '));
 		const audio_blob = await ffmpeg.readFile(`output.ogg`);
 		console.log('Read audio blob from ffmpeg');
-		set_ffmpeg_busy(false);
 		const blob = new Blob([audio_blob], { type: `audio/ogg` });
 		return {
 			name: 'output.ogg',
@@ -213,8 +229,11 @@
 		if (!current_file) {
 			return;
 		}
+		const ffmpeg = ffmpeg_manager.get_instance();
+		if (!ffmpeg) {
+			return;
+		}
 		console.log('Processing video:', current_file.name);
-		set_ffmpeg_busy(true);
 		await ffmpeg.writeFile(current_file.name, await fetchFile(current_file));
 		console.log('wrote file to ffmpeg:', current_file.name);
 
@@ -241,13 +260,11 @@
 		console.log('Executed ffmpeg command: ffmpeg ', command.join(' '));
 		const video_blob = await ffmpeg.readFile(`output.webm`);
 		console.log('Read video blob from ffmpeg');
-		set_ffmpeg_busy(false);
 		return new Blob([video_blob], { type: `video/webm` });
 	}
 
 	async function split() {
 		console.log('Splitting audio from video...');
-		listen(true, listen_ffmpeg_message, listen_ffmpeg_progress);
 		if (!current_file) {
 			toast.push('No file selected.');
 			return;
@@ -282,7 +299,6 @@
 			name: current_file.name.replace(/\.[^/.]+$/, '') + `[sound=${audio_url}].webm`,
 			blob: video_blob
 		};
-		listen(false, listen_ffmpeg_message, listen_ffmpeg_progress);
 
 		//let extension = await get_sound_extension({ name: current_file.name, blob: current_file });
 		//console.log('Sound extension:', extension);
