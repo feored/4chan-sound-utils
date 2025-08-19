@@ -2,7 +2,7 @@
 	import Filepicker from '$lib/components/filepicker.svelte';
 	import FfmpegExportSettings from './ffmpeg_export_settings.svelte';
 	import Preview from './preview.svelte';
-	import MessageViewer from '../message_viewer.svelte';
+	import Log from '../log.svelte';
 	import byteSize from 'byte-size';
 	import { get_ffmpeg_parameters } from '$lib/ffmpeg/parameters/parameter_generator';
 	import type { Stream, ExportSettings } from '$lib/ffmpeg/types';
@@ -120,7 +120,7 @@
 				<button onclick={() => merge()}>Merge</button>
 			</div>
 		{:else}
-			<MessageViewer {message_manager} {ffmpeg_manager} />
+			<Log {message_manager} {ffmpeg_manager} />
 
 			{#if merge_state === 'finished'}
 				<div class="flash bd-accent">

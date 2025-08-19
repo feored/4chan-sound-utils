@@ -4,12 +4,12 @@
 
 	import { type LogEvent, type ProgressEvent } from '@ffmpeg/ffmpeg';
 
-	interface MessageViewerProps {
+	interface LogProps {
 		message_manager: MessageManager;
 		ffmpeg_manager: FFmpegManager;
 	}
 
-	let { message_manager, ffmpeg_manager }: MessageViewerProps = $props();
+	let { message_manager, ffmpeg_manager }: LogProps = $props();
 
 	$effect(() => {
 		if (ffmpeg_manager.is_loaded()) {
@@ -31,7 +31,7 @@
 </script>
 
 <div class="flash muted">
-	<p><b>Log</b></p>
+	<p class="default"><b>Log</b></p>
 	<ul>
 		{#each Object.values(message_manager.messages) as value, i}
 			<li>

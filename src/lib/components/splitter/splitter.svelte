@@ -20,7 +20,7 @@
 	import Seekbar from '$lib/components/splitter/trim/seekbar.svelte';
 	import VideoControls from '$lib/components/splitter/video_controls.svelte';
 	import CanvasController from '$lib/components/splitter/crop/canvas_controller.svelte';
-	import MessageViewer from '../message_viewer.svelte';
+	import Log from '../log.svelte';
 
 	import { MessageManager } from '$lib/utils/message_manager.svelte';
 	import { type Stream } from '$lib/ffmpeg/types';
@@ -172,17 +172,26 @@
 			return;
 		}
 		message_manager.add('extract_audio', `Extracting audio from ${current_file.name}...`);
+		// https://superuser.com/a/704118
+		const fast_skip_start = Math.floor(0.9 * start_time); // Skip 90% of the start time quickly but approximately,
+		console.log(
+			`fast_skip_start: ${fast_skip_start}, start_time: ${start_time}, trim_duration: ${trim_duration}`
+		);
+		// then seek to the exact start time
+		const rest_skip_start = start_time - fast_skip_start;
+		console.log(`rest_skip_start: ${rest_skip_start}`);
+		console.log(fast_skip_start + rest_skip_start, 'should equal start_time:', start_time);
 		await ffmpeg.writeFile(current_file.name, await fetchFile(current_file));
 		let command = [
 			'-y',
 			'-ss',
-			format_ffmpeg_time(start_time),
+			format_ffmpeg_time(fast_skip_start),
 			'-i',
 			current_file.name,
 			'-map',
 			'0:a:0',
 			'-ss',
-			format_ffmpeg_time(start_time),
+			format_ffmpeg_time(rest_skip_start),
 			'-t',
 			format_ffmpeg_time(trim_duration),
 			'-c:a',
@@ -310,7 +319,7 @@
 			split();
 		}}>Split</button
 	>
-	<MessageViewer {message_manager} {ffmpeg_manager} />
+	<Log {message_manager} {ffmpeg_manager} />
 
 	<a
 		href={URL.createObjectURL(final_stream.blob)}
