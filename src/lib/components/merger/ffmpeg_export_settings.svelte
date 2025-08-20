@@ -11,21 +11,21 @@
 		x264TuneOptionsFormatted,
 		vp8BitrateOptions
 	} from '$lib/ffmpeg/types';
+	import { is_image } from '$lib/utils/files';
 
 	type SettingsProps = {
 		export_settings?: ExportSettings;
-		is_image: boolean;
+		file_name?: string;
 	};
-	let { export_settings = $bindable(), is_image } = $props();
+	let { export_settings = $bindable(), file_name } = $props();
 
 	let x264_preset: x264Preset = $state('fast'); // Default preset for x264 encoding
-	let x264_tune: x264Tune = $state('none'); // Default tune for x264 encoding
 
 	let webm_bitrate: VP8Bitrate = $state('1M'); // Default bitrate for webm encoding
 	let output_format: OutputFormat = $state('mp4'); // Default output format
 
-	$effect(() => {
-		x264_tune = is_image ? 'stillimage' : 'none'; // Set tune based on whether the input is an image
+	let x264_tune: x264Tune = $derived.by(() => {
+		return is_image(file_name) ? 'stillimage' : 'none'; // Automatically set tune based on input type
 	});
 
 	$effect(() => {

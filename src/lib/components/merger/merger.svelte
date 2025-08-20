@@ -6,7 +6,7 @@
 	import byteSize from 'byte-size';
 	import { get_ffmpeg_parameters } from '$lib/ffmpeg/parameters/parameter_generator';
 	import type { Stream, ExportSettings } from '$lib/ffmpeg/types';
-	import { get_url, get_file_name, is_image } from '$lib/utils/files';
+	import { get_url, get_file_name } from '$lib/utils/files';
 	import { download_blob } from '$lib/utils/downloads';
 	import { toast } from '@zerodevx/svelte-toast';
 	import { fetchFile } from '@ffmpeg/util';
@@ -116,7 +116,7 @@
 		{#if merge_state === 'ready'}
 			<Preview {current_file} />
 			<div>
-				<FfmpegExportSettings is_image={is_image(current_file.name)} bind:export_settings />
+				<FfmpegExportSettings file_name={current_file.name} bind:export_settings />
 				<button onclick={() => merge()}>Merge</button>
 			</div>
 		{:else}
