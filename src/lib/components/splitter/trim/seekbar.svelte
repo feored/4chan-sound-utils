@@ -44,13 +44,14 @@
 	.parent {
 		width: 100%;
 		position: relative;
-		height: 3rem;
+		height: 2rem;
 	}
 
 	.seekbar {
 		/* border: 1px solid var(--bg-contrast); */
 		width: 100%;
-		background-color: var(--bg-accent);
+		background: var(--accent);
+		background: radial-gradient(circle, var(--accent) 0%, var(--bg-accent) 150%);
 		height: 100%;
 		border-radius: var(--bd-radius);
 	}

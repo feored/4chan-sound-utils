@@ -8,20 +8,30 @@ export type Message = {
 
 export class MessageManager {
 
+    /*
+        Used to keep track of logs coming from ffmpeg, etc.
+        A glorified dictionary but the id array helps to keep track of the order of messages.
+        Messages that update (like progress) must use the same id to overwrite the previous message.
+    */
+
+    private current_id: number = 0;
     private ids: string[] = [];
     private ffmpeg_process_id: number = 0;
     public messages: Record<string, Message> = $state({});
 
-
-    public log(id: string, message: string): void {
-        this.add_message(id, { message: message, error: false });
+    public log(message: string, id?: string): void {
+        this.add_message({ message: message, error: false }, id);
     }
 
-    public error(id: string, message: string): void {
-        this.add_message(id, { message: `Error: ${message}`, error: true });
+    public error(message: string, id?: string): void {
+        this.add_message({ message: `Error: ${message}`, error: true }, id);
     }
 
-    private add_message(id: string, message: Message) {
+    private add_message(message: Message, id?: string) {
+        if (!id) {
+            id = `message_${this.current_id}`;
+            this.current_id += 1;
+        }
         if (!this.ids.includes(id)) {
             this.ids.push(id);
         }
@@ -35,6 +45,7 @@ export class MessageManager {
 
 
     public reset(): void {
+        this.current_id = 0;
         this.ids = [];
         this.messages = {};
         this.ffmpeg_process_id = 0;
@@ -46,13 +57,13 @@ export class MessageManager {
 
     private listen_ffmpeg_message = (event: LogEvent) => {
         let formatted_message = `FFmpeg [${event.type}]: ${event.message}`;
-        this.log(`ffmpeg_message_${this.ffmpeg_process_id}`, formatted_message);
+        this.log(formatted_message, `ffmpeg_message_${this.ffmpeg_process_id}`);
     }
     private listen_ffmpeg_progress = (event: ProgressEvent) => {
         const progress = event.progress * 100; // Convert to percentage
         this.log(
-            `ffmpeg_progress_${this.ffmpeg_process_id}`,
-            `FFmpeg [progress]: ${progress.toFixed(2)}%`
+            `FFmpeg [progress]: ${progress.toFixed(2)}%`,
+            `ffmpeg_progress_${this.ffmpeg_process_id}`
         );
     }
 

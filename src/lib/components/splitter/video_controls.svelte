@@ -52,7 +52,6 @@
 
 <div class="controls-container">
 	<div class="controls">
-		<button onclick={stop}><Square /></button>
 		{#if playing}
 			<button class="bd-accent" onclick={() => video?.pause()}><Pause /></button>
 		{:else}
@@ -60,6 +59,7 @@
 				<Play />
 			</button>
 		{/if}
+		<button onclick={stop}><Square /></button>
 		<div class="timer-text flash accent">
 			{format_ffmpeg_time(video_data.current_time, false)} / {format_ffmpeg_time(
 				video_data.duration,

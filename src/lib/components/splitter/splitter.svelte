@@ -46,6 +46,7 @@
 	});
 
 	$effect(() => {
+		// Reset video data when a new file is selected
 		if (current_file) {
 			video_data = default_video_data;
 		}
@@ -144,7 +145,7 @@
 		const form_data = new FormData();
 		form_data.append('reqtype', 'fileupload');
 		form_data.append('fileToUpload', file);
-		message_manager.log('upload_audio', `Uploading audio: ${file.name}...`);
+		message_manager.log(`Uploading audio: ${file.name}...`);
 
 		try {
 			const response = await fetch('https://catbox.moe/user/api.php', {
@@ -153,7 +154,7 @@
 				body: form_data
 			});
 			let resp = await response.text();
-			message_manager.log('upload_audio_response', resp);
+			message_manager.log(resp, 'upload_audio_response');
 			return resp;
 		} catch (e) {
 			console.error(e);
@@ -169,7 +170,7 @@
 		if (!ffmpeg) {
 			return;
 		}
-		message_manager.log('extract_audio', `Extracting audio from ${current_file.name}...`);
+		message_manager.log(`Extracting audio from ${current_file.name}...`);
 		// https://superuser.com/a/704118
 		const fast_skip_start = Math.floor(0.9 * start_time); // Skip 90% of the start time quickly but approximately,
 		console.log(
@@ -198,10 +199,10 @@
 			'192k',
 			'output.ogg'
 		];
-		message_manager.log('ffmpeg_command_extract_audio', `Running ffmpeg ${command.join(' ')}`);
+		message_manager.log(`Running ffmpeg ${command.join(' ')}`);
 		await ffmpeg.exec(command);
 		const audio_blob = await ffmpeg.readFile(`output.ogg`);
-		message_manager.log('audio_extracted', `Audio extracted from ${current_file.name}`);
+		message_manager.log(`Audio extracted from ${current_file.name}`);
 		const blob = new Blob([audio_blob], { type: `audio/ogg` });
 		return {
 			name: 'output.ogg',
@@ -217,7 +218,7 @@
 		if (!ffmpeg) {
 			return;
 		}
-		message_manager.log('process_video', `Processing video: ${current_file.name}...`);
+		message_manager.log(`Processing video: ${current_file.name}...`);
 		await ffmpeg.writeFile(current_file.name, await fetchFile(current_file));
 
 		// https://superuser.com/a/704118
@@ -239,7 +240,7 @@
 			format_ffmpeg_time(trim_duration),
 			'output.webm'
 		];
-		message_manager.log('ffmpeg_command_process_video', `Running ffmpeg ${command.join(' ')}`);
+		message_manager.log(`Running ffmpeg ${command.join(' ')}`);
 		await ffmpeg.exec(command);
 		const video_blob = await ffmpeg.readFile(`output.webm`);
 		return new Blob([video_blob], { type: `video/webm` });
@@ -247,9 +248,9 @@
 
 	async function split() {
 		message_manager.reset();
-		message_manager.log('split', 'Splitting audio and video...');
+		message_manager.log('Splitting audio and video...');
 		if (!current_file) {
-			message_manager.log('split_error', 'No file selected.');
+			message_manager.error('No file selected.');
 			return;
 		}
 		const start_time = video_data.start_progress * video_data.duration;
@@ -259,7 +260,7 @@
 		let audio_stream = await extract_audio(start_time, trim_duration);
 		message_manager.bump_ffmpeg_process_id(); // Prepare log for next ffmpeg process
 		if (!audio_stream) {
-			message_manager.log('extract_error', 'Failed to extract audio from video.');
+			message_manager.error('Failed to extract audio from video.');
 			return;
 		}
 		let audio_file = new File([audio_stream.blob], audio_stream.name, {
@@ -268,13 +269,13 @@
 		//let audio_url = await upload_file(audio_file);
 		let audio_url = 'https://files.catbox.moe/ijpeep.mp3';
 		if (!audio_url) {
-			message_manager.log('upload_error', 'Failed to upload audio file.');
+			message_manager.error('Failed to upload audio file.');
 			return;
 		}
 		audio_url = encodeURIComponent(audio_url);
 		let video_blob = await process_video(start_time, trim_duration);
 		if (!video_blob) {
-			message_manager.log('process_error', 'Failed to process video.');
+			message_manager.error('Failed to process video.');
 			return;
 		}
 
@@ -282,11 +283,8 @@
 			name: current_file.name.replace(/\.[^/.]+$/, '') + `[sound=${audio_url}].webm`,
 			blob: video_blob
 		};
-		message_manager.log('split_success', 'Audio and video split successfully.');
-		message_manager.log(
-			'final_stream',
-			`Final video: ${final_stream.name} (${final_stream.blob.size} bytes)`
-		);
+		message_manager.log('Audio and video split successfully.');
+		message_manager.log(`Final video: ${final_stream.name} (${final_stream.blob.size} bytes)`);
 
 		//let extension = await get_sound_extension({ name: current_file.name, blob: current_file });
 		//console.log('Sound extension:', extension);
@@ -296,11 +294,7 @@
 <Filepicker bind:current_file accept_image={false} show_preview={false} />
 
 {#if current_file}
-	<section>
-		<section>
-			<VideoControls {video} {video_data} />
-			<Seekbar {video_data} {on_seek} {on_start_seek} {on_end_seek} />
-		</section>
+	<section class="flash default px-2 bg-muted">
 		<div class="media-container">
 			<video
 				bind:this={video}
@@ -312,6 +306,10 @@
 			</video>
 			<CanvasController {video} />
 		</div>
+		<section>
+			<Seekbar {video_data} {on_seek} {on_start_seek} {on_end_seek} />
+			<VideoControls {video} {video_data} />
+		</section>
 	</section>
 	<button
 		onclick={() => {

@@ -21,18 +21,16 @@
 	};
 </script>
 
-{#if Object.values(message_manager.messages).length > 0}
-	<div class="flash muted" {@attach attach_listeners}>
-		<ul>
-			<p><b>Log</b></p>
-			{#each Object.values(message_manager.messages) as message, i}
-				<li class:error={message.error}>
-					{message.message}
-				</li>
-			{/each}
-		</ul>
-	</div>
-{/if}
+<div class="flash muted" {@attach attach_listeners}>
+	<ul>
+		<p><b>Log</b></p>
+		{#each Object.values(message_manager.messages) as message, i}
+			<li class:error={message.error}>
+				{message.message}
+			</li>
+		{/each}
+	</ul>
+</div>
 
 <style>
 	li {

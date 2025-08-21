@@ -325,13 +325,10 @@
 	width={dimensions.width}
 	height={dimensions.height}
 ></canvas>
-<div class="flex" style="justify-content: space-between;">
-	<div class="p-.5 mono-text flash bd-accent">
-		Cropped: {calc_crop().width} x {calc_crop().height}
-	</div>
-	<div class="p-.5 mono-text flash bd-muted">
-		Original: {real_dimensions.width} x {real_dimensions.height}
-	</div>
+<div>
+	<code>
+		Cropped: {calc_crop().width} x {calc_crop().height} - Original: {real_dimensions.width} x {real_dimensions.height}
+	</code>
 </div>
 
 <style>

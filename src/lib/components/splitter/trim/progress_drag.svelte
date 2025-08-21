@@ -11,6 +11,8 @@
 	let { progress, seek_type, duration, seekbar, on_seek }: DraggableProps = $props();
 
 	let dragging = $state(false);
+	let hovering = $state(false);
+
 	let self: HTMLDivElement | null = $state(null);
 
 	function onmousedown() {
@@ -74,13 +76,14 @@
 	ontouchend={onmouseup}
 	{ontouchmove}
 	ontouchcancel={onmouseup}
-	{onmouseenter}
+	onmouseenter={() => (hovering = true)}
+	onmouseleave={() => (hovering = false)}
 	{onmousedown}
 	{onmousemove}
-	class:z-index-100={dragging}
+	class:z-index-100={hovering || dragging}
 >
-	{#if dragging}
-		<div class="p-.5 timer-display timer-text flash accent unselectable z-index-100">
+	{#if hovering || dragging}
+		<div class="p-.5 timer-display timer-text flash default unselectable">
 			{format_ffmpeg_time(progress * duration, false)}
 		</div>
 	{/if}
@@ -101,7 +104,7 @@
 	}
 	.timer-display {
 		position: absolute;
-		top: 100%;
+		bottom: 100%;
 		font-family: var(--ft-mono);
 		font-size: 0.85rem;
 		transform: translate(-50%);
@@ -136,6 +139,6 @@
 	}
 	.handle {
 		width: 0.5rem;
-		background-color: var(--dark-danger);
+		background-color: var(--default);
 	}
 </style>
