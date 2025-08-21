@@ -3,17 +3,20 @@
 	import FfmpegExportSettings from './ffmpeg_export_settings.svelte';
 	import Preview from './preview.svelte';
 	import Log from '../log.svelte';
+	import { dialog_open } from '$lib/components/dialog.svelte';
 	import byteSize from 'byte-size';
-	import { get_ffmpeg_parameters } from '$lib/ffmpeg/parameters/parameter_generator';
+
 	import type { Stream, ExportSettings } from '$lib/ffmpeg/types';
+
+	import { onMount } from 'svelte';
+
 	import { get_url, get_file_name } from '$lib/utils/files';
 	import { download_blob } from '$lib/utils/downloads';
-	import { toast } from '@zerodevx/svelte-toast';
-	import { fetchFile } from '@ffmpeg/util';
-	import { onMount } from 'svelte';
+	import { get_ffmpeg_parameters } from '$lib/ffmpeg/parameters/parameter_generator';
+	import { merge } from '$lib/ffmpeg/merge';
 	import { FFmpegManager } from '$lib/ffmpeg/ffmpeg.svelte';
-	import { CircleAlert } from '@lucide/svelte';
 	import { MessageManager } from '$lib/utils/message_manager.svelte';
+	import { CircleAlert } from '@lucide/svelte';
 
 	let final_video: Blob = $state<Blob>(new Blob()); // Final merged video blob
 
@@ -43,68 +46,54 @@
 	function reset() {
 		final_video = new Blob();
 		message_manager.reset();
-		merge_state = 'ready';
 	}
 
-	async function merge() {
+	async function on_merge() {
 		if (!current_file) {
-			toast.push('No file selected.');
-			reset();
+			dialog_open('No File Selected', 'Please select a file to merge.', reset);
 			return;
 		}
 		merge_state = 'loading';
 		const sound = await download_sound(current_file.name);
 		if (!sound || !sound.blob) {
-			toast.push('Failed to extract sound from file.');
-			reset();
+			message_manager.log('error', 'Failed to download sound from file name.');
 			return;
 		}
-		message_manager.add('launch', 'Launching ffmpeg...');
+		message_manager.log('launch', 'Launching ffmpeg...');
 		let video: Stream = {
 			name: current_file.name,
 			blob: current_file
 		};
+		const ffmpeg = ffmpeg_manager.get_instance();
+		if (!ffmpeg) {
+			message_manager.log('error', 'FFmpeg instance is not available.');
+			return;
+		}
+		const command = get_ffmpeg_parameters(video, sound, export_settings);
+		message_manager.log('ffmpeg_run', 'ffmpeg ' + command.join(' '));
 		try {
-			await ffmpeg_merge(video, sound);
+			final_video = await merge(ffmpeg, video, sound, command, export_settings);
 		} catch (error) {
-			toast.push(`FFmpeg error: ${error}`);
-			reset();
+			message_manager.log('error', `FFmpeg error: ${error}`);
 			return;
 		}
 		merge_state = 'finished';
 	}
 
-	async function ffmpeg_merge(video: Stream, sound: Stream) {
-		const ffmpeg = ffmpeg_manager.get_instance();
-		if (!ffmpeg) {
-			return;
-		}
-		await ffmpeg.writeFile(video.name, await fetchFile(video.blob));
-		await ffmpeg.writeFile(sound.name, await fetchFile(sound.blob));
-		let command = get_ffmpeg_parameters(video, sound, export_settings);
-		message_manager.add('ffmpeg_run', 'ffmpeg ' + command.join(' '));
-		await ffmpeg.exec(command);
-		const data = await ffmpeg.readFile(`output.${export_settings.output_format}`);
-
-		const data_array = data as Uint8Array;
-		final_video = new Blob([data_array], { type: `video/${export_settings.output_format}` });
-	}
-
 	async function download_sound(file_name: string): Promise<Stream | null> {
 		const url = get_url(file_name);
 		if (!url) {
-			toast.push('Invalid sound URL.');
+			message_manager.log('error', 'Invalid sound URL.');
 			return null;
 		}
 		try {
 			const response = await download_blob(url, (progress: number) => {
-				message_manager.add('download', `Downloading sound... ${progress.toFixed(2)}%`);
+				message_manager.log('download', `Downloading sound... ${progress.toFixed(2)}%`);
 			});
 			const sound: Stream = { blob: response, name: `${encodeURIComponent(url)}` };
 			return sound;
 		} catch (error) {
-			console.error('Error downloading sound:', error);
-			toast.push(`Error downloading sound: ${error}`);
+			message_manager.log('error', `Failed to download sound: ${error}`);
 			return null;
 		}
 	}
@@ -117,7 +106,7 @@
 			<Preview {current_file} />
 			<div>
 				<FfmpegExportSettings file_name={current_file.name} bind:export_settings />
-				<button onclick={() => merge()}>Merge</button>
+				<button onclick={() => on_merge()}>Merge</button>
 			</div>
 		{:else}
 			<Log {message_manager} {ffmpeg_manager} />
@@ -138,7 +127,7 @@
 		{/if}
 	{:else}
 		<p class="flash danger icon">
-			<CircleAlert /> Cannot find sound URL in file `{current_file.name}`.
+			<CircleAlert /> Cannot find sound URL / invalid sound URL in file `{current_file.name}`.
 		</p>
 		<Preview {current_file} />
 	{/if}

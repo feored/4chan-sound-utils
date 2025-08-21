@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Splitter from '$lib/components/splitter/splitter.svelte';
 	import Merger from '$lib/components/merger/merger.svelte';
+	import Dialog from '$lib/components/dialog.svelte';
 
 	const tabs = [
 		{ name: 'splitter', component: Splitter, label: 'WebM Maker' },
@@ -31,4 +32,5 @@
 			<svelte:component this={tab.component} />
 		{/if}
 	{/each}
+	<Dialog />
 </main>

@@ -27,8 +27,6 @@
 	import { FFmpegManager } from '$lib/ffmpeg/ffmpeg.svelte';
 	import { format_ffmpeg_time } from '$lib/utils/utils';
 	import { fetchFile } from '@ffmpeg/util';
-	import { toast } from '@zerodevx/svelte-toast';
-	import { type LogEvent, type ProgressEvent } from '@ffmpeg/ffmpeg';
 	import { onMount } from 'svelte';
 
 	let current_file: File | null = $state(null);
@@ -146,7 +144,7 @@
 		const form_data = new FormData();
 		form_data.append('reqtype', 'fileupload');
 		form_data.append('fileToUpload', file);
-		message_manager.add('upload_audio', `Uploading audio: ${file.name}...`);
+		message_manager.log('upload_audio', `Uploading audio: ${file.name}...`);
 
 		try {
 			const response = await fetch('https://catbox.moe/user/api.php', {
@@ -155,7 +153,7 @@
 				body: form_data
 			});
 			let resp = await response.text();
-			message_manager.add('upload_audio_response', resp);
+			message_manager.log('upload_audio_response', resp);
 			return resp;
 		} catch (e) {
 			console.error(e);
@@ -171,7 +169,7 @@
 		if (!ffmpeg) {
 			return;
 		}
-		message_manager.add('extract_audio', `Extracting audio from ${current_file.name}...`);
+		message_manager.log('extract_audio', `Extracting audio from ${current_file.name}...`);
 		// https://superuser.com/a/704118
 		const fast_skip_start = Math.floor(0.9 * start_time); // Skip 90% of the start time quickly but approximately,
 		console.log(
@@ -200,10 +198,10 @@
 			'192k',
 			'output.ogg'
 		];
-		message_manager.add('ffmpeg_command_extract_audio', `Running ffmpeg ${command.join(' ')}`);
+		message_manager.log('ffmpeg_command_extract_audio', `Running ffmpeg ${command.join(' ')}`);
 		await ffmpeg.exec(command);
 		const audio_blob = await ffmpeg.readFile(`output.ogg`);
-		message_manager.add('audio_extracted', `Audio extracted from ${current_file.name}`);
+		message_manager.log('audio_extracted', `Audio extracted from ${current_file.name}`);
 		const blob = new Blob([audio_blob], { type: `audio/ogg` });
 		return {
 			name: 'output.ogg',
@@ -219,7 +217,7 @@
 		if (!ffmpeg) {
 			return;
 		}
-		message_manager.add('process_video', `Processing video: ${current_file.name}...`);
+		message_manager.log('process_video', `Processing video: ${current_file.name}...`);
 		await ffmpeg.writeFile(current_file.name, await fetchFile(current_file));
 
 		// https://superuser.com/a/704118
@@ -241,7 +239,7 @@
 			format_ffmpeg_time(trim_duration),
 			'output.webm'
 		];
-		message_manager.add('ffmpeg_command_process_video', `Running ffmpeg ${command.join(' ')}`);
+		message_manager.log('ffmpeg_command_process_video', `Running ffmpeg ${command.join(' ')}`);
 		await ffmpeg.exec(command);
 		const video_blob = await ffmpeg.readFile(`output.webm`);
 		return new Blob([video_blob], { type: `video/webm` });
@@ -249,9 +247,9 @@
 
 	async function split() {
 		message_manager.reset();
-		message_manager.add('split', 'Splitting audio and video...');
+		message_manager.log('split', 'Splitting audio and video...');
 		if (!current_file) {
-			message_manager.add('split_error', 'No file selected.');
+			message_manager.log('split_error', 'No file selected.');
 			return;
 		}
 		const start_time = video_data.start_progress * video_data.duration;
@@ -259,8 +257,9 @@
 			(video_data.end_progress - video_data.start_progress) * video_data.duration;
 
 		let audio_stream = await extract_audio(start_time, trim_duration);
+		message_manager.bump_ffmpeg_process_id(); // Prepare log for next ffmpeg process
 		if (!audio_stream) {
-			message_manager.add('extract_error', 'Failed to extract audio from video.');
+			message_manager.log('extract_error', 'Failed to extract audio from video.');
 			return;
 		}
 		let audio_file = new File([audio_stream.blob], audio_stream.name, {
@@ -269,13 +268,13 @@
 		//let audio_url = await upload_file(audio_file);
 		let audio_url = 'https://files.catbox.moe/ijpeep.mp3';
 		if (!audio_url) {
-			message_manager.add('upload_error', 'Failed to upload audio file.');
+			message_manager.log('upload_error', 'Failed to upload audio file.');
 			return;
 		}
 		audio_url = encodeURIComponent(audio_url);
 		let video_blob = await process_video(start_time, trim_duration);
 		if (!video_blob) {
-			message_manager.add('process_error', 'Failed to process video.');
+			message_manager.log('process_error', 'Failed to process video.');
 			return;
 		}
 
@@ -283,8 +282,8 @@
 			name: current_file.name.replace(/\.[^/.]+$/, '') + `[sound=${audio_url}].webm`,
 			blob: video_blob
 		};
-		message_manager.add('split_success', 'Audio and video split successfully.');
-		message_manager.add(
+		message_manager.log('split_success', 'Audio and video split successfully.');
+		message_manager.log(
 			'final_stream',
 			`Final video: ${final_stream.name} (${final_stream.blob.size} bytes)`
 		);
