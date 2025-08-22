@@ -118,24 +118,24 @@
 	.right_bracket {
 		left: 100%;
 		width: 0.5rem;
-		border-right: 0.25rem solid var(--subtle);
-		border-top: 0.25rem solid var(--subtle);
-		border-bottom: 0.25rem solid var(--subtle);
+		border-right: 0.25rem solid;
+		border-top: 0.25rem solid;
+		border-bottom: 0.25rem solid;
 		border-top-right-radius: var(--bd-radius);
 		border-bottom-right-radius: var(--bd-radius);
 		transform: translate(0rem, -0.25rem);
-		border-color: var(--accent);
+		border-color: var(--attention);
 	}
 	.left_bracket {
 		left: 0;
 		width: 0.5rem;
-		border-left: 0.25rem solid var(--subtle);
-		border-top: 0.25rem solid var(--subtle);
-		border-bottom: 0.25rem solid var(--subtle);
+		border-left: 0.25rem solid;
+		border-top: 0.25rem solid;
+		border-bottom: 0.25rem solid;
 		border-top-left-radius: var(--bd-radius);
 		border-bottom-left-radius: var(--bd-radius);
 		transform: translate(-0.25rem, -0.25rem);
-		border-color: var(--accent);
+		border-color: var(--attention);
 	}
 	.handle {
 		width: 0.5rem;

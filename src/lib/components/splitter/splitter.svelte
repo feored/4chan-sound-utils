@@ -19,28 +19,44 @@
 	import Filepicker from '$lib/components/filepicker.svelte';
 	import Seekbar from '$lib/components/splitter/trim/seekbar.svelte';
 	import VideoControls from '$lib/components/splitter/video_controls.svelte';
-	import CanvasController from '$lib/components/splitter/crop/canvas_controller.svelte';
+	import CanvasController, {
+		get_crop
+	} from '$lib/components/splitter/crop/canvas_controller.svelte';
 	import Log from '../log.svelte';
+	import Restrictions from './restrictions.svelte';
+	import FfmpegExportSettings from '../ffmpeg_export_settings.svelte';
 
 	import { MessageManager } from '$lib/utils/message_manager.svelte';
-	import { type Stream } from '$lib/ffmpeg/types';
+	import type { ExportSettings, Stream } from '$lib/ffmpeg/types';
 	import { FFmpegManager } from '$lib/ffmpeg/ffmpeg.svelte';
-	import { format_ffmpeg_time } from '$lib/utils/utils';
-	import { fetchFile } from '@ffmpeg/util';
+	import { extract } from '$lib/ffmpeg/scripts/extract';
 	import { onMount } from 'svelte';
 
 	let current_file: File | null = $state(null);
 	let video: HTMLVideoElement | null = $state(null);
 	let video_data: VideoData = $state(default_video_data);
-	let last_seek_preview: boolean = $state(false);
+	let last_seek_preview: boolean = $state(false); // if the last seek was previewing the image (not actually seeking to that time)
 	const message_manager = new MessageManager();
 	const ffmpeg_manager = new FFmpegManager();
+	let current_state: 'ready' | 'loading' | 'finished' = $state('ready');
+	let valid: boolean = $state(false); // Valid video uploadable to 4chan
+	let export_settings: ExportSettings = $state({
+		output_format: 'mp4',
+		settings: {
+			preset: 'fast',
+			tune: 'none',
+			bitrate: '1M'
+		}
+	});
 
 	onMount(() => {
 		// Default video ontimeupdate evemt fires too slowly, makes it choppy
-		setInterval(function () {
-			ontimeupdate(new Event('ontimeupdate'));
-		}, 50);
+		setInterval(
+			function () {
+				ontimeupdate(new Event('ontimeupdate'));
+			},
+			(1 / 24) * 1000 // 24 FPS
+		);
 
 		ffmpeg_manager.init();
 	});
@@ -162,120 +178,77 @@
 		}
 	}
 
-	async function extract_audio(start_time: number, trim_duration: number) {
-		if (!current_file) {
-			return;
-		}
-		const ffmpeg = ffmpeg_manager.get_instance();
-		if (!ffmpeg) {
-			return;
-		}
-		message_manager.log(`Extracting audio from ${current_file.name}...`);
-		// https://superuser.com/a/704118
-		const fast_skip_start = Math.floor(0.9 * start_time); // Skip 90% of the start time quickly but approximately,
-		console.log(
-			`fast_skip_start: ${fast_skip_start}, start_time: ${start_time}, trim_duration: ${trim_duration}`
-		);
-		// then seek to the exact start time
-		const rest_skip_start = start_time - fast_skip_start;
-		console.log(`rest_skip_start: ${rest_skip_start}`);
-		console.log(fast_skip_start + rest_skip_start, 'should equal start_time:', start_time);
-		await ffmpeg.writeFile(current_file.name, await fetchFile(current_file));
-		let command = [
-			'-y',
-			'-ss',
-			format_ffmpeg_time(fast_skip_start),
-			'-i',
-			current_file.name,
-			'-map',
-			'0:a:0',
-			'-ss',
-			format_ffmpeg_time(rest_skip_start),
-			'-t',
-			format_ffmpeg_time(trim_duration),
-			'-c:a',
-			'libvorbis',
-			'-b:a',
-			'192k',
-			'output.ogg'
-		];
-		message_manager.log(`Running ffmpeg ${command.join(' ')}`);
-		await ffmpeg.exec(command);
-		const audio_blob = await ffmpeg.readFile(`output.ogg`);
-		message_manager.log(`Audio extracted from ${current_file.name}`);
-		const blob = new Blob([audio_blob], { type: `audio/ogg` });
-		return {
-			name: 'output.ogg',
-			blob: blob
-		};
-	}
-
-	async function process_video(start_time: number, trim_duration: number) {
-		if (!current_file) {
-			return;
-		}
-		const ffmpeg = ffmpeg_manager.get_instance();
-		if (!ffmpeg) {
-			return;
-		}
-		message_manager.log(`Processing video: ${current_file.name}...`);
-		await ffmpeg.writeFile(current_file.name, await fetchFile(current_file));
-
-		// https://superuser.com/a/704118
-		let command = [
-			'-y',
-			'-ss',
-			format_ffmpeg_time(start_time),
-			'-i',
-			current_file.name,
-			'-map',
-			'0:v:0',
-			'-ss',
-			format_ffmpeg_time(start_time),
-			'-c:v',
-			'libvpx',
-			'-b:v',
-			'2M',
-			'-t',
-			format_ffmpeg_time(trim_duration),
-			'output.webm'
-		];
-		message_manager.log(`Running ffmpeg ${command.join(' ')}`);
-		await ffmpeg.exec(command);
-		const video_blob = await ffmpeg.readFile(`output.webm`);
-		return new Blob([video_blob], { type: `video/webm` });
-	}
-
 	async function split() {
 		message_manager.reset();
 		message_manager.log('Splitting audio and video...');
+		const ffmpeg = ffmpeg_manager.get_instance();
+		if (!ffmpeg) {
+			message_manager.error('FFmpeg instance is not available.');
+			return;
+		}
 		if (!current_file) {
 			message_manager.error('No file selected.');
 			return;
 		}
-		const start_time = video_data.start_progress * video_data.duration;
-		const trim_duration =
-			(video_data.end_progress - video_data.start_progress) * video_data.duration;
-
-		let audio_stream = await extract_audio(start_time, trim_duration);
-		message_manager.bump_ffmpeg_process_id(); // Prepare log for next ffmpeg process
+		const audio_stream = await extract(
+			ffmpeg,
+			{
+				name: current_file.name,
+				blob: current_file
+			},
+			{
+				output_format: 'ogg',
+				trim: {
+					start: video_data.start_progress * video_data.duration,
+					end: video_data.end_progress * video_data.duration
+				}
+			},
+			message_manager,
+			'audio'
+		).catch((error) => {
+			message_manager.error(error.message);
+			return null;
+		});
 		if (!audio_stream) {
-			message_manager.error('Failed to extract audio from video.');
+			message_manager.error('Failed to extract audio from video file.');
 			return;
 		}
-		let audio_file = new File([audio_stream.blob], audio_stream.name, {
-			type: audio_stream.blob.type
-		});
-		//let audio_url = await upload_file(audio_file);
-		let audio_url = 'https://files.catbox.moe/ijpeep.mp3';
+		let audio_url = await upload_file(new File([audio_stream], 'extracted_audio.ogg'));
+		//let audio_url = 'https://files.catbox.moe/ijpeep.mp3';
 		if (!audio_url) {
 			message_manager.error('Failed to upload audio file.');
 			return;
 		}
 		audio_url = encodeURIComponent(audio_url);
-		let video_blob = await process_video(start_time, trim_duration);
+		const export_settings: ExportSettings = {
+			output_format: 'webm',
+			trim: {
+				start: video_data.start_progress * video_data.duration,
+				end: video_data.end_progress * video_data.duration
+			},
+			settings: {
+				bitrate: '2M'
+			}
+		};
+		const crop = get_crop();
+		if (crop) {
+			export_settings.crop = crop;
+		}
+		const video_blob = await extract(
+			ffmpeg,
+			{
+				name: current_file.name,
+				blob: current_file
+			},
+			export_settings,
+			message_manager,
+			'video'
+		).catch((error) => {
+			message_manager.error(error.message);
+			return null;
+		});
 		if (!video_blob) {
-			message_manager.error('Failed to process video.');
+			message_manager.error('Failed to process video file.');
 			return;
 		}
 
@@ -294,7 +267,7 @@
 <Filepicker bind:current_file accept_image={false} show_preview={false} />
 
 {#if current_file}
-	<section class="flash default px-2 bg-muted">
+	<section class="flash px-2 bd-muted">
 		<div class="media-container">
 			<video
 				bind:this={video}
@@ -311,6 +284,12 @@
 			<VideoControls {video} {video_data} />
 		</section>
 	</section>
+	<Restrictions
+		{video_data}
+		{valid}
+		{export_settings}
+		dimensions={{ width: get_crop()?.width || 0, height: get_crop()?.height || 0 }}
+	/>
 	<button
 		onclick={() => {
 			split();

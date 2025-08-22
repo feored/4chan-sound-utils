@@ -1,4 +1,5 @@
 <script module>
+	import type { CropSettings } from '$lib/ffmpeg/types';
 	const direction_options = ['NW', 'N', 'NE', 'W', 'E', 'SW', 'S', 'SE'] as const;
 	type Direction = (typeof direction_options)[number];
 
@@ -21,6 +22,18 @@
 	const OUTSIDE_COLOR = '#000000E6';
 	const HANDLE_SIZE = 12; // Size of the resize handles
 	const MIN_CROP = 64;
+
+	export function get_crop(): CropSettings | null {
+		return crop_surface
+			? {
+					x: crop_surface.origin.x,
+					y: crop_surface.origin.y,
+					width: crop_surface.width,
+					height: crop_surface.height
+				}
+			: null;
+	}
+	let crop_surface: Surface | null = $state(null);
 </script>
 
 <script lang="ts">
@@ -46,9 +59,28 @@
 	// Reset when a new video is loaded
 	$effect(() => {
 		if (video) {
-			console.dir(video);
 			video.addEventListener('loadedmetadata', reset);
 		}
+	});
+
+	$effect(() => {
+		crop_surface = computed_crop;
+	});
+
+	let computed_crop: Surface = $derived.by(() => {
+		if (!canvas || !video) return { origin: { x: 0, y: 0 }, width: 0, height: 0 };
+		const ratio = video.videoWidth / video.offsetWidth;
+		const crop_width = Math.round((bounds.p1.x - bounds.p0.x) * ratio);
+		const crop_height = Math.round((bounds.p1.y - bounds.p0.y) * ratio);
+		const crop_origin = {
+			x: Math.round(bounds.p0.x * ratio),
+			y: Math.round(bounds.p0.y * ratio) // Adjust for the canvas offset
+		};
+		return {
+			origin: crop_origin,
+			width: crop_width,
+			height: crop_height
+		};
 	});
 
 	function reset(): void {
@@ -75,8 +107,8 @@
 		context.clearRect(0, 0, dimensions.width, dimensions.height);
 		draw_background(context);
 		if (visible_handles) {
-			draw_handles(context);
 			draw_border(context);
+			draw_handles(context);
 		}
 	}
 
@@ -108,13 +140,21 @@
 	}
 
 	function draw_border(context: CanvasRenderingContext2D): void {
-		context.strokeStyle = '#111';
+		context.strokeStyle = '#FFF';
 		context.lineWidth = 2;
 		context.strokeRect(
 			bounds.p0.x,
 			bounds.p0.y,
 			bounds.p1.x - bounds.p0.x,
 			bounds.p1.y - bounds.p0.y
+		);
+		context.strokeStyle = '#111';
+		context.lineWidth = 2;
+		context.strokeRect(
+			bounds.p0.x + 2,
+			bounds.p0.y + 2,
+			bounds.p1.x - bounds.p0.x - 4,
+			bounds.p1.y - bounds.p0.y - 4
 		);
 	}
 
@@ -298,22 +338,6 @@
 			visible_handles = false;
 		}
 	}
-
-	function calc_crop(): Surface {
-		if (!canvas || !video) return { origin: { x: 0, y: 0 }, width: 0, height: 0 };
-		const ratio = video.videoWidth / video.offsetWidth;
-		const crop_width = Math.round((bounds.p1.x - bounds.p0.x) * ratio);
-		const crop_height = Math.round((bounds.p1.y - bounds.p0.y) * ratio);
-		const crop_origin = {
-			x: Math.round(bounds.p0.x * ratio),
-			y: Math.round(bounds.p0.y * ratio) // Adjust for the canvas offset
-		};
-		return {
-			origin: crop_origin,
-			width: crop_width,
-			height: crop_height
-		};
-	}
 </script>
 
 <svelte:document {onmouseup} {onmousemove} />
@@ -327,7 +351,7 @@
 ></canvas>
 <div>
 	<code>
-		Cropped: {calc_crop().width} x {calc_crop().height} - Original: {real_dimensions.width} x {real_dimensions.height}
+		Cropped: {computed_crop.width} x {computed_crop.height} - Original: {real_dimensions.width} x {real_dimensions.height}
 	</code>
 </div>
 

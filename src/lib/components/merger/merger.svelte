@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Filepicker from '$lib/components/filepicker.svelte';
-	import FfmpegExportSettings from './ffmpeg_export_settings.svelte';
+	import FfmpegExportSettings from '../ffmpeg_export_settings.svelte';
 	import Preview from './preview.svelte';
 	import Log from '../log.svelte';
 	import byteSize from 'byte-size';
@@ -11,8 +11,7 @@
 
 	import { get_url, get_file_name } from '$lib/utils/files';
 	import { download_blob } from '$lib/utils/downloads';
-	import { get_ffmpeg_parameters } from '$lib/ffmpeg/parameters/parameter_generator';
-	import { merge } from '$lib/ffmpeg/merge';
+	import { merge } from '$lib/ffmpeg/scripts/merge';
 	import { FFmpegManager } from '$lib/ffmpeg/ffmpeg.svelte';
 	import { MessageManager } from '$lib/utils/message_manager.svelte';
 	import { CircleAlert } from '@lucide/svelte';
@@ -27,7 +26,8 @@
 		output_format: 'mp4',
 		settings: {
 			preset: 'fast',
-			tune: 'none'
+			tune: 'none',
+			bitrate: '1M'
 		}
 	});
 
@@ -59,7 +59,6 @@
 			message_manager.error('Failed to download sound from file name.');
 			return;
 		}
-		message_manager.log('Launching ffmpeg...');
 		let video: Stream = {
 			name: current_file.name,
 			blob: current_file
@@ -69,10 +68,8 @@
 			message_manager.error('FFmpeg instance is not available.');
 			return;
 		}
-		const command = get_ffmpeg_parameters(video, sound, export_settings);
-		message_manager.log('ffmpeg_run', 'ffmpeg ' + command.join(' '));
 		try {
-			final_video = await merge(ffmpeg, video, sound, command, export_settings);
+			final_video = await merge(ffmpeg, video, sound, export_settings, message_manager);
 		} catch (error) {
 			message_manager.error(`FFmpeg error: ${error}`);
 			return;
@@ -88,7 +85,7 @@
 		}
 		try {
 			const response = await download_blob(url, (progress: number) => {
-				message_manager.log('download', `Downloading sound... ${progress.toFixed(2)}%`);
+				message_manager.log(`Downloading sound... ${progress.toFixed(2)}%`, `download_sound`);
 			});
 			const sound: Stream = { blob: response, name: `${encodeURIComponent(url)}` };
 			return sound;
