@@ -50,7 +50,7 @@ function add_video_settings(command: string[], x264_settings: x264ExportSettings
         command.push('-tune', x264_settings.tune);
     }
     if (x264_settings.bitrate) {
-        command.push('-b:v', x264_settings.bitrate);
+        command.push('-b:v', `${x264_settings.bitrate}k`);
     }
 }
 

@@ -45,7 +45,7 @@
 		settings: {
 			preset: 'fast',
 			tune: 'none',
-			bitrate: '1M'
+			bitrate: 2048 // Default bitrate in Kbits/s
 		}
 	});
 
@@ -65,6 +65,7 @@
 		// Reset video data when a new file is selected
 		if (current_file) {
 			video_data = default_video_data;
+			current_state = 'ready';
 		}
 	});
 
@@ -180,6 +181,7 @@
 
 	async function split() {
 		message_manager.reset();
+		current_state = 'loading';
 		message_manager.log('Splitting audio and video...');
 		const ffmpeg = ffmpeg_manager.get_instance();
 		if (!ffmpeg) {
@@ -227,7 +229,7 @@
 				end: video_data.end_progress * video_data.duration
 			},
 			settings: {
-				bitrate: '2M'
+				bitrate: 2048
 			}
 		};
 		const crop = get_crop();
@@ -258,6 +260,7 @@
 		};
 		message_manager.log('Audio and video split successfully.');
 		message_manager.log(`Final video: ${final_stream.name} (${final_stream.blob.size} bytes)`);
+		current_state = 'finished';
 
 		//let extension = await get_sound_extension({ name: current_file.name, blob: current_file });
 		//console.log('Sound extension:', extension);
@@ -267,41 +270,46 @@
 <Filepicker bind:current_file accept_image={false} show_preview={false} />
 
 {#if current_file}
-	<section class="flash px-2 bd-muted">
-		<div class="media-container">
-			<video
-				bind:this={video}
-				src={URL.createObjectURL(current_file)}
-				{ondurationchange}
-				{onresize}
-			>
-				Your browser does not support the video tag.
-			</video>
-			<CanvasController {video} />
-		</div>
-		<section>
-			<Seekbar {video_data} {on_seek} {on_start_seek} {on_end_seek} />
-			<VideoControls {video} {video_data} />
+	{#if current_state === 'ready'}
+		<section class="flash px-2 bd-muted">
+			<div class="media-container">
+				<video
+					bind:this={video}
+					src={URL.createObjectURL(current_file)}
+					{ondurationchange}
+					{onresize}
+				>
+					Your browser does not support the video tag.
+				</video>
+				<CanvasController {video} />
+			</div>
+			<section>
+				<Seekbar {video_data} {on_seek} {on_start_seek} {on_end_seek} />
+				<VideoControls {video} {video_data} />
+			</section>
 		</section>
-	</section>
-	<Restrictions
-		{video_data}
-		{valid}
-		{export_settings}
-		dimensions={{ width: get_crop()?.width || 0, height: get_crop()?.height || 0 }}
-	/>
-	<button
-		onclick={() => {
-			split();
-		}}>Split</button
-	>
-	<Log {message_manager} {ffmpeg_manager} />
-
-	<a
-		href={URL.createObjectURL(final_stream.blob)}
-		download={final_stream.name}
-		title="Download processedvideo"><button>Download</button></a
-	>
+		<Restrictions
+			{video_data}
+			{valid}
+			{export_settings}
+			dimensions={{ width: get_crop()?.width || 0, height: get_crop()?.height || 0 }}
+		/>
+		<FfmpegExportSettings file_name={current_file.name} bind:export_settings />
+		<button
+			onclick={() => {
+				split();
+			}}>Split</button
+		>
+	{:else}
+		<Log {message_manager} {ffmpeg_manager} />
+		{#if current_state === 'finished'}
+			<a
+				href={URL.createObjectURL(final_stream.blob)}
+				download={final_stream.name}
+				title="Download processedvideo"><button>Download</button></a
+			>
+		{/if}
+	{/if}
 {:else}
 	<div class="flash bg-muted bd-muted">
 		<p><b class="default">Instructions</b></p>

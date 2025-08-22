@@ -4,26 +4,24 @@
 		type OutputFormat,
 		type x264Preset,
 		type x264Tune,
-		type Bitrate,
 		x264PresetOptions,
 		x264PresetOptionsFormatted,
 		x264TuneOptions,
-		x264TuneOptionsFormatted,
-		BitrateOptions,
-		BitrateOptionsFormatted
+		x264TuneOptionsFormatted
 	} from '$lib/ffmpeg/types';
 	import { is_image } from '$lib/utils/files';
+	import byteSize from 'byte-size';
 
 	type SettingsProps = {
 		export_settings?: ExportSettings;
-		file_name?: string;
+		file_name: string;
 	};
-	let { export_settings = $bindable(), file_name } = $props();
+	let { export_settings = $bindable(), file_name }: SettingsProps = $props();
 
 	let x264_preset: x264Preset = $state('fast'); // Default preset for x264 encoding
-	let x264_bitrate: Bitrate = $state('1M'); // Default bitrate for x264 encoding
+	let x264_bitrate: number = $state(2048); // Default bitrate for x264 encoding
 
-	let webm_bitrate: Bitrate = $state('1M'); // Default bitrate for webm encoding
+	let webm_bitrate: number = $state(2048); // Default bitrate for webm encoding
 	let output_format: OutputFormat = $state('mp4'); // Default output format
 
 	let x264_tune: x264Tune = $derived.by(() => {
@@ -56,7 +54,7 @@
 	<fieldset>
 		<legend>Output format</legend>
 		<p>MP4 highly recommended.</p>
-		<div class="options">
+		<div>
 			<label>
 				<input type="radio" name="output_format" value="mp4" bind:group={output_format} />
 				MP4 (H.264)
@@ -70,39 +68,40 @@
 	{#if output_format === 'webm'}
 		<fieldset>
 			<legend>Target Bitrate</legend>
-			<div class="options">
-				{#each BitrateOptions as bitrate, i}
-					<label>
-						<input type="radio" name="webm_bitrate" value={bitrate} bind:group={webm_bitrate} />
-						{BitrateOptionsFormatted[i]}
-					</label>
-				{/each}
-			</div>
+			<input
+				name="webm_bitrate_range"
+				type="range"
+				min="256"
+				max="65536"
+				step="256"
+				bind:value={webm_bitrate}
+			/>
+			<label for="webm_bitrate_range">Up to {byteSize((webm_bitrate * 1000) / 8)}/s</label>
 		</fieldset>
 	{:else}
-		<div class="settings-container">
+		<div>
 			<fieldset>
 				<legend>Target Bitrate</legend>
-				<div class="options">
-					{#each BitrateOptions as bitrate, i}
-						<label>
-							<input type="radio" name="x264_bitrate" value={bitrate} bind:group={x264_bitrate} />
-							{BitrateOptionsFormatted[i]}
-						</label>
-					{/each}
-				</div>
+				<input
+					name="x264_bitrate_range"
+					type="range"
+					min="256"
+					max="65536"
+					step="256"
+					bind:value={x264_bitrate}
+				/>
+				<label for="x264_bitrate_range">Up to {byteSize((x264_bitrate * 1000) / 8)}/s</label>
 			</fieldset>
 			<fieldset>
 				<legend>Preset</legend>
 				<p>Slower will yield higher quality encodes.</p>
-				<div class="options">
-					{#each x264PresetOptions as p, i}
-						<label>
-							<input type="radio" name="preset" value={p} bind:group={x264_preset} />
+				<select bind:value={x264_preset}
+					>{#each x264PresetOptions as p, i}
+						<option value={p} selected={x264_preset === p}>
 							{x264PresetOptionsFormatted[i]}
-						</label>
+						</option>
 					{/each}
-				</div>
+				</select>
 			</fieldset>
 			<fieldset>
 				<legend>Tune</legend>
@@ -110,14 +109,13 @@
 					Optimize the output for specific content types. <br />Pick <i>Still Image</i> if your input
 					is an image file.
 				</p>
-				<div class="options">
-					{#each x264TuneOptions as t, i}
-						<label>
-							<input type="radio" name="tune" value={t} bind:group={x264_tune} />
+				<select bind:value={x264_tune}
+					>{#each x264TuneOptions as t, i}
+						<option value={t} selected={x264_tune === t}>
 							{x264TuneOptionsFormatted[i]}
-						</label>
+						</option>
 					{/each}
-				</div>
+				</select>
 			</fieldset>
 		</div>
 	{/if}

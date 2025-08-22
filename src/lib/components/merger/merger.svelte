@@ -27,7 +27,7 @@
 		settings: {
 			preset: 'fast',
 			tune: 'none',
-			bitrate: '1M'
+			bitrate: 2048
 		}
 	});
 

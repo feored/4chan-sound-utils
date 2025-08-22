@@ -50,7 +50,7 @@ function add_crop(command: string[], crop_settings: CropSettings): void {
 }
 
 function add_video_settings(command: string[], vp8_settings: VP8ExportSettings): void {
-    command.push(`-c:v`, `libvpx`, `-crf`, `10`, `-b:v`, vp8_settings.bitrate);
+    command.push(`-c:v`, `libvpx`, `-crf`, `10`, `-b:v`, `${vp8_settings.bitrate}k`);
 }
 
 function add_audio_settings(command: string[]): void {
