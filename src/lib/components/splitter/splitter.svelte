@@ -1,11 +1,5 @@
 <script module lang="ts">
-	export interface VideoData {
-		progress: number;
-		current_time: number;
-		duration: number;
-		start_progress: number;
-		end_progress: number;
-	}
+	import type { VideoData } from '$lib/types';
 	const default_video_data: VideoData = {
 		progress: 0,
 		current_time: 0,
@@ -27,10 +21,11 @@
 	import FfmpegExportSettings from '../ffmpeg_export_settings.svelte';
 
 	import { MessageManager } from '$lib/utils/message_manager.svelte';
-	import type { ExportSettings, Stream } from '$lib/ffmpeg/types';
+	import type { ExportSettings, Stream } from '$lib/types';
 	import { FFmpegManager } from '$lib/ffmpeg/ffmpeg.svelte';
 	import { extract } from '$lib/ffmpeg/scripts/extract';
 	import { onMount } from 'svelte';
+	import { Info } from '@lucide/svelte';
 
 	let current_file: File | null = $state(null);
 	let video: HTMLVideoElement | null = $state(null);
@@ -39,14 +34,16 @@
 	const message_manager = new MessageManager();
 	const ffmpeg_manager = new FFmpegManager();
 	let current_state: 'ready' | 'loading' | 'finished' = $state('ready');
-	let valid: boolean = $state(false); // Valid video uploadable to 4chan
+	let upload_audio: boolean = $state(true);
+
 	let export_settings: ExportSettings = $state({
 		output_format: 'mp4',
 		settings: {
 			preset: 'fast',
 			tune: 'none',
 			bitrate: 2048 // Default bitrate in Kbits/s
-		}
+		},
+		crop: get_crop()
 	});
 
 	onMount(() => {
@@ -170,6 +167,9 @@
 				// Set the FormData instance as the request body
 				body: form_data
 			});
+			if (!response.ok) {
+				throw new Error(`Status: ${response.status}`);
+			}
 			let resp = await response.text();
 			message_manager.log(resp, 'upload_audio_response');
 			return resp;
@@ -192,46 +192,40 @@
 			message_manager.error('No file selected.');
 			return;
 		}
-		const audio_stream = await extract(
-			ffmpeg,
-			{
-				name: current_file.name,
-				blob: current_file
-			},
-			{
-				output_format: 'ogg',
-				trim: {
-					start: video_data.start_progress * video_data.duration,
-					end: video_data.end_progress * video_data.duration
-				}
-			},
-			message_manager,
-			'audio'
-		).catch((error) => {
-			message_manager.error(error.message);
-			return null;
-		});
-		if (!audio_stream) {
-			message_manager.error('Failed to extract audio from video file.');
-			return;
-		}
-		let audio_url = await upload_file(new File([audio_stream], 'extracted_audio.ogg'));
-		//let audio_url = 'https://files.catbox.moe/ijpeep.mp3';
-		if (!audio_url) {
-			message_manager.error('Failed to upload audio file.');
-			return;
-		}
-		audio_url = encodeURIComponent(audio_url);
-		const export_settings: ExportSettings = {
-			output_format: 'webm',
-			trim: {
-				start: video_data.start_progress * video_data.duration,
-				end: video_data.end_progress * video_data.duration
-			},
-			settings: {
-				bitrate: 2048
+		let final_audio_url = '';
+		if (upload_audio) {
+			const audio_stream = await extract(
+				ffmpeg,
+				{
+					name: current_file.name,
+					blob: current_file
+				},
+				{
+					output_format: 'ogg',
+					trim: {
+						start: video_data.start_progress * video_data.duration,
+						end: video_data.end_progress * video_data.duration
+					},
+					crop: get_crop()
+				},
+				message_manager,
+				'audio'
+			).catch((error) => {
+				message_manager.error(error.message);
+				return null;
+			});
+			if (!audio_stream) {
+				message_manager.error('Failed to extract audio from video file.');
+				return;
 			}
-		};
+			let audio_url = await upload_file(new File([audio_stream], 'extracted_audio.ogg'));
+			//let audio_url = 'https://files.catbox.moe/ijpeep.mp3';
+			if (!audio_url) {
+				message_manager.error('Failed to upload audio file.');
+				return;
+			}
+			final_audio_url = encodeURIComponent(audio_url);
+		}
 		const crop = get_crop();
 		if (crop) {
 			export_settings.crop = crop;
@@ -242,7 +236,14 @@
 				name: current_file.name,
 				blob: current_file
 			},
-			export_settings,
+			{
+				...export_settings,
+				trim: {
+					start: video_data.start_progress * video_data.duration,
+					end: video_data.end_progress * video_data.duration
+				},
+				crop: get_crop()
+			},
 			message_manager,
 			'video'
 		).catch((error) => {
@@ -253,9 +254,11 @@
 			message_manager.error('Failed to process video file.');
 			return;
 		}
-
+		const filename =
+			current_file.name.replace(/\.[^/.]+$/, '') +
+			(final_audio_url ? `[sound=${final_audio_url}]` : '');
 		final_stream = {
-			name: current_file.name.replace(/\.[^/.]+$/, '') + `[sound=${audio_url}].webm`,
+			name: filename,
 			blob: video_blob
 		};
 		message_manager.log('Audio and video split successfully.');
@@ -288,26 +291,49 @@
 				<VideoControls {video} {video_data} />
 			</section>
 		</section>
-		<Restrictions
-			{video_data}
-			{valid}
-			{export_settings}
-			dimensions={{ width: get_crop()?.width || 0, height: get_crop()?.height || 0 }}
-		/>
+		<div class="flash bd-muted">
+			<label>
+				<input type="checkbox" name="upload_audio" bind:checked={upload_audio} />
+				Upload audio file to catbox.moe
+			</label>
+		</div>
+		{#if get_crop().width > 2048 || get_crop().height > 2048}
+			<div class="flash accent">
+				<p>
+					<Info /> The cropped video exceeds the maximum resolution of 2048x2048 pixels and will be scaled
+					down.
+				</p>
+			</div>
+		{/if}
+		<Restrictions {video_data} {export_settings} />
 		<FfmpegExportSettings file_name={current_file.name} bind:export_settings />
 		<button
 			onclick={() => {
 				split();
-			}}>Split</button
+			}}
+			type="submit">Split</button
 		>
 	{:else}
 		<Log {message_manager} {ffmpeg_manager} />
 		{#if current_state === 'finished'}
+			<video src={URL.createObjectURL(final_stream.blob)} controls />
+
 			<a
 				href={URL.createObjectURL(final_stream.blob)}
 				download={final_stream.name}
 				title="Download processedvideo"><button>Download</button></a
 			>
+			{#if upload_audio}
+				<div class="flash accent">
+					<p>Filename: <code>{final_stream.name}.{export_settings.output_format}</code></p>
+					<p>
+						<small
+							>Some browsers won't let you download files that contain '%' in the name. In that
+							case, please copy and paste this filename.</small
+						>
+					</p>
+				</div>
+			{/if}
 		{/if}
 	{/if}
 {:else}

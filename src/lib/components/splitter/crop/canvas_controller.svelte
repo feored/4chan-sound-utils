@@ -1,5 +1,6 @@
 <script module>
-	import type { CropSettings } from '$lib/ffmpeg/types';
+	import type { CropSettings } from '$lib/types';
+	import { onMount } from 'svelte';
 	const direction_options = ['NW', 'N', 'NE', 'W', 'E', 'SW', 'S', 'SE'] as const;
 	type Direction = (typeof direction_options)[number];
 
@@ -23,17 +24,17 @@
 	const HANDLE_SIZE = 12; // Size of the resize handles
 	const MIN_CROP = 64;
 
-	export function get_crop(): CropSettings | null {
-		return crop_surface
-			? {
-					x: crop_surface.origin.x,
-					y: crop_surface.origin.y,
-					width: crop_surface.width,
-					height: crop_surface.height
-				}
-			: null;
+	export function get_crop(): CropSettings {
+		return {
+			enabled: crop_enabled,
+			x: crop_surface?.origin.x || 0,
+			y: crop_surface?.origin.y || 0,
+			width: crop_surface?.width || 0,
+			height: crop_surface?.height || 0
+		};
 	}
 	let crop_surface: Surface | null = $state(null);
+	let crop_enabled: boolean = $state(false);
 </script>
 
 <script lang="ts">
@@ -56,6 +57,10 @@
 		p1: { x: dimensions.width, y: dimensions.height }
 	});
 
+	onMount(() => {
+		window.addEventListener('resize', reset);
+	});
+
 	// Reset when a new video is loaded
 	$effect(() => {
 		if (video) {
@@ -65,13 +70,21 @@
 
 	$effect(() => {
 		crop_surface = computed_crop;
+		crop_enabled =
+			computed_crop.width < real_dimensions.width || computed_crop.height < real_dimensions.height;
 	});
 
 	let computed_crop: Surface = $derived.by(() => {
 		if (!canvas || !video) return { origin: { x: 0, y: 0 }, width: 0, height: 0 };
 		const ratio = video.videoWidth / video.offsetWidth;
-		const crop_width = Math.round((bounds.p1.x - bounds.p0.x) * ratio);
-		const crop_height = Math.round((bounds.p1.y - bounds.p0.y) * ratio);
+		const crop_width = Math.min(
+			Math.round((bounds.p1.x - bounds.p0.x) * ratio),
+			real_dimensions.width
+		);
+		const crop_height = Math.min(
+			Math.round((bounds.p1.y - bounds.p0.y) * ratio),
+			real_dimensions.height
+		);
 		const crop_origin = {
 			x: Math.round(bounds.p0.x * ratio),
 			y: Math.round(bounds.p0.y * ratio) // Adjust for the canvas offset

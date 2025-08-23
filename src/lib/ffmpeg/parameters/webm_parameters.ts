@@ -1,5 +1,5 @@
 // ffmpeg/webmParameters.ts
-import type { Stream, VP8ExportSettings, ExportSettings, TrimSettings, CropSettings } from '$lib/ffmpeg/types';
+import type { Stream, VP8ExportSettings, ExportSettings, TrimSettings, CropSettings } from '$lib/types';
 import { format_ffmpeg_time } from '$lib/utils/utils';
 
 export function get_webm_parameters(
@@ -16,10 +16,8 @@ export function get_webm_parameters(
     if (settings.trim) {
         add_trim(command, settings.trim);
     }
-    if (settings.crop && settings.crop.width > 0 && settings.crop.height > 0) {
-        add_crop(command, settings.crop);
-    }
     add_video_settings(command, vp8_settings);
+    add_filters(command, settings);
     if (has_audio) {
         add_audio_settings(command);
     }
@@ -45,8 +43,19 @@ function add_trim(command: string[], trim_settings: TrimSettings): void {
     command.push(`-t`, format_ffmpeg_time(trim_settings.end - trim_settings.start));
 }
 
-function add_crop(command: string[], crop_settings: CropSettings): void {
-    command.push(`-vf`, `crop=${crop_settings.width}:${crop_settings.height}:${crop_settings.x}:${crop_settings.y}`);
+
+function add_filters(command: string[], export_settings: ExportSettings): void {
+    const filters = [];
+    if (export_settings.crop.enabled) {
+        filters.push(`crop=${export_settings.crop.width}:${export_settings.crop.height}:${export_settings.crop.x}:${export_settings.crop.y}`)
+    }
+    if (export_settings.scale_down) {
+        filters.push(`scale=w=2048:h=2048:force_original_aspect_ratio=decrease`)
+    }
+    if (filters.length > 0) {
+        const joined_filters = filters.length > 1 ? `"${filters.join(',')}"` : filters.join(',');
+        command.push('-vf', joined_filters);
+    }
 }
 
 function add_video_settings(command: string[], vp8_settings: VP8ExportSettings): void {

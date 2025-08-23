@@ -1,5 +1,5 @@
 import { fetchFile } from '@ffmpeg/util';
-import type { ExportSettings, Stream } from '../types';
+import type { ExportSettings, Stream } from '../../types';
 import type { FFmpeg } from '@ffmpeg/ffmpeg';
 import { get_ffmpeg_parameters } from '../parameters/parameter_generator';
 import type { MessageManager } from '$lib/utils/message_manager.svelte';

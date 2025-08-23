@@ -1,4 +1,4 @@
-import type { Stream, ExportSettings, x264ExportSettings, VP8ExportSettings } from '../types';
+import type { Stream, ExportSettings, x264ExportSettings, VP8ExportSettings } from '../../types';
 import { get_mp4_parameters } from './mp4_parameters';
 import { get_webm_parameters } from './webm_parameters';
 import { get_ogg_parameters } from './ogg_parameters';

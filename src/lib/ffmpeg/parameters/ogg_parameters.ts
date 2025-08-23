@@ -1,5 +1,5 @@
 // ffmpeg/webmParameters.ts
-import type { Stream, ExportSettings, TrimSettings } from '$lib/ffmpeg/types';
+import type { Stream, ExportSettings, TrimSettings } from '$lib/types';
 import { format_ffmpeg_time } from '$lib/utils/utils';
 
 // used to extract audio from a video file and save it as an OGG file

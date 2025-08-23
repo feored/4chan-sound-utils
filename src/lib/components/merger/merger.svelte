@@ -5,7 +5,7 @@
 	import Log from '../log.svelte';
 	import byteSize from 'byte-size';
 
-	import type { Stream, ExportSettings } from '$lib/ffmpeg/types';
+	import type { Stream, ExportSettings } from '$lib/types';
 
 	import { onMount } from 'svelte';
 
@@ -28,6 +28,13 @@
 			preset: 'fast',
 			tune: 'none',
 			bitrate: 2048
+		},
+		crop: {
+			enabled: false,
+			x: 0,
+			y: 0,
+			width: 0,
+			height: 0
 		}
 	});
 
@@ -103,7 +110,7 @@
 			<Preview {current_file} />
 			<div>
 				<FfmpegExportSettings file_name={current_file.name} bind:export_settings />
-				<button onclick={() => on_merge()}>Merge</button>
+				<button type="submit" onclick={() => on_merge()}>Merge</button>
 			</div>
 		{:else}
 			<Log {message_manager} {ffmpeg_manager} />

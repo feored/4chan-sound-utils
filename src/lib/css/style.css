@@ -1,10 +1,10 @@
-/* body {
-  max-width: max(75%, var(--ct-width));
+body {
+  max-width: min(75%, 1920px);
 }
 
 section {
   max-width: 100%;
-} */
+}
 
 .loader {
   width: 24px;

@@ -1,12 +1,27 @@
+export interface VideoData {
+    progress: number;
+    current_time: number;
+    duration: number;
+    start_progress: number;
+    end_progress: number;
+}
+
 export interface ExportSettings {
     output_format: 'mp4' | 'webm' | 'ogg';
     settings?: x264ExportSettings | VP8ExportSettings;
-    crop?: CropSettings;
+    crop: CropSettings;
     trim?: TrimSettings;
     remove_audio?: boolean;
+    scale_down?: boolean
 }
 
+export type ScaleSettings = {
+    width: number; // in pixels
+    height: number; // in pixels
+    force?: boolean; // If true, will force the output to the specified dimensions, potentially changing the aspect ratio
+}
 export type CropSettings = {
+    enabled: boolean; // If true, cropping will be applied
     width: number;
     height: number;
     x: number;
