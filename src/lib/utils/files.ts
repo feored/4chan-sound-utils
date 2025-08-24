@@ -1,6 +1,6 @@
 const sound_re = /\[sound=(?<url>.*)]/;
 const image_extensions = ['jpg', 'jpeg', 'png', 'gif'];
-const video_extensions = ['mp4', 'webm'];
+const video_extensions = ['mp4', 'webm', 'mkv'];
 const audio_extensions = ['mp3', 'wav', 'ogg'];
 
 export function get_url(file_name: String): string | null {
@@ -28,6 +28,10 @@ export function get_file_type(file_name: String): "image" | "video" | "audio" | 
         }
     }
     return "unknown";
+}
+
+export function is_image(fileName: string): boolean {
+    return get_file_type(fileName) === 'image';
 }
 
 export function get_file_name(file_name: String): string {
