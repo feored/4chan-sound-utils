@@ -12,9 +12,11 @@
 </script>
 
 <header class="my-4">
-	<h3>4chan sound utils</h3>
+	<h3>Soundpost Tools</h3>
 	<small>
-		Utilities compatible with <a href="4chan-sounds-player">4chan Sounds Player</a>,
+		Utilities compatible with <a href="https://github.com/rcc11/4chan-sounds-player"
+			>4chan Sounds Player</a
+		>,
 		<a href="https://sleazyfork.org/en/scripts/31045-4chan-external-sounds">4chan External Sounds</a
 		>, etc.
 	</small>
