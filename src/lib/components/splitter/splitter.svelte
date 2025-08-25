@@ -35,7 +35,6 @@
 	const ffmpeg_manager = new FFmpegManager();
 	let current_state: 'ready' | 'loading' | 'finished' = $state('ready');
 	let upload_audio: boolean = $state(true);
-
 	let export_settings: ExportSettings = $state({
 		output_format: 'mp4',
 		settings: {
@@ -44,6 +43,16 @@
 			bitrate: 2048 // Default bitrate in Kbits/s
 		},
 		crop: get_crop()
+	});
+
+	let export_result: Stream = $state({
+		name: '',
+		blob: new Blob()
+	});
+
+	let extracted_audio: Stream = $state({
+		name: '',
+		blob: new Blob()
 	});
 
 	onMount(() => {
@@ -64,11 +73,6 @@
 			video_data = default_video_data;
 			current_state = 'ready';
 		}
-	});
-
-	let final_stream: Stream = $state({
-		name: '',
-		blob: new Blob()
 	});
 
 	function on_start_seek(progress: number, preview = false) {
@@ -193,31 +197,36 @@
 			return;
 		}
 		let final_audio_url = '';
+
+		const audio_stream = await extract(
+			ffmpeg,
+			{
+				name: current_file.name,
+				blob: current_file
+			},
+			{
+				output_format: 'ogg',
+				trim: {
+					start: video_data.start_progress * video_data.duration,
+					end: video_data.end_progress * video_data.duration
+				},
+				crop: get_crop()
+			},
+			message_manager,
+			'audio'
+		).catch((error) => {
+			message_manager.error(error.message);
+			return null;
+		});
+		if (!audio_stream) {
+			message_manager.error('Failed to extract audio from video file.');
+			return;
+		}
+		extracted_audio = {
+			name: 'sound.ogg',
+			blob: audio_stream
+		};
 		if (upload_audio) {
-			const audio_stream = await extract(
-				ffmpeg,
-				{
-					name: current_file.name,
-					blob: current_file
-				},
-				{
-					output_format: 'ogg',
-					trim: {
-						start: video_data.start_progress * video_data.duration,
-						end: video_data.end_progress * video_data.duration
-					},
-					crop: get_crop()
-				},
-				message_manager,
-				'audio'
-			).catch((error) => {
-				message_manager.error(error.message);
-				return null;
-			});
-			if (!audio_stream) {
-				message_manager.error('Failed to extract audio from video file.');
-				return;
-			}
 			let audio_url = await upload_file(new File([audio_stream], 'extracted_audio.ogg'));
 			//let audio_url = 'https://files.catbox.moe/ijpeep.mp3';
 			if (!audio_url) {
@@ -257,12 +266,12 @@
 		const filename =
 			current_file.name.replace(/\.[^/.]+$/, '') +
 			(final_audio_url ? `[sound=${final_audio_url}]` : '');
-		final_stream = {
+		export_result = {
 			name: filename,
 			blob: video_blob
 		};
 		message_manager.log('Audio and video split successfully.');
-		message_manager.log(`Final video: ${final_stream.name} (${final_stream.blob.size} bytes)`);
+		message_manager.log(`Final video: ${export_result.name} (${export_result.blob.size} bytes)`);
 		current_state = 'finished';
 
 		//let extension = await get_sound_extension({ name: current_file.name, blob: current_file });
@@ -316,24 +325,30 @@
 	{:else}
 		<Log {message_manager} {ffmpeg_manager} />
 		{#if current_state === 'finished'}
-			<video src={URL.createObjectURL(final_stream.blob)} controls />
+			<div class="flash bd-muted">
+				<p><b>Video result</b></p>
+				<video src={URL.createObjectURL(export_result.blob)} controls />
 
-			<a
-				href={URL.createObjectURL(final_stream.blob)}
-				download={final_stream.name}
-				title="Download processedvideo"><button>Download</button></a
-			>
-			{#if upload_audio}
-				<div class="flash accent">
-					<p>Filename: <code>{final_stream.name}.{export_settings.output_format}</code></p>
+				<a
+					href={URL.createObjectURL(export_result.blob)}
+					download={`${export_result.name}.${export_settings.output_format}`}
+					title="Download processedvideo"><button>Download</button></a
+				>
+			</div>
+			<div class="flash bd-muted">
+				{#if upload_audio}
+					<p>Filename: <code>{export_result.name}.{export_settings.output_format}</code></p>
 					<p>
 						<small
 							>Some browsers won't let you download files that contain '%' in the name. In that
 							case, please copy and paste this filename.</small
 						>
 					</p>
-				</div>
-			{/if}
+				{:else}
+					<p><b>Extracted audio</b></p>
+					<audio src={URL.createObjectURL(extracted_audio.blob)} controls />
+				{/if}
+			</div>
 		{/if}
 	{/if}
 {:else}

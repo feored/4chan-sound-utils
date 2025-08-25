@@ -53,8 +53,7 @@ function add_filters(command: string[], export_settings: ExportSettings): void {
         filters.push(`scale=w=2048:h=2048:force_original_aspect_ratio=decrease`)
     }
     if (filters.length > 0) {
-        const joined_filters = filters.length > 1 ? `"${filters.join(',')}"` : filters.join(',');
-        command.push('-vf', joined_filters);
+        command.push('-vf', filters.join(','));
     }
 }
 

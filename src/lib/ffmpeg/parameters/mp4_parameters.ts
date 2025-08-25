@@ -1,4 +1,5 @@
-import type { Stream, x264ExportSettings, ExportSettings } from '../../types';
+import type { Stream, x264ExportSettings, ExportSettings, TrimSettings } from '../../types';
+import { format_ffmpeg_time } from '$lib/utils/utils';
 import { is_image } from '$lib/utils/files';
 
 export function get_mp4_parameters(
@@ -11,6 +12,9 @@ export function get_mp4_parameters(
     const base_command = create_base_command(video_input, audio_input);
     if (is_image(video_input.name)) {
         handle_image_input(base_command);
+    }
+    if (settings.trim) {
+        add_trim(base_command, settings.trim);
     }
     add_video_settings(base_command, x264_settings);
     add_filters(base_command, settings);
@@ -49,10 +53,19 @@ function add_filters(command: string[], export_settings: ExportSettings): void {
         filters.push('pad=ceil(iw/2)*2:ceil(ih/2)*2'); // Ensure even dimensions for x264 encoding
     }
     if (filters.length > 0) {
-        const joined_filters = filters.length > 1 ? `"${filters.join(',')}"` : filters.join(',');
-        command.push('-vf', joined_filters);
+        command.push('-vf', filters.join(','));
     }
 }
+
+function add_trim(command: string[], trim_settings: TrimSettings): void {
+    // https://superuser.com/a/704118
+    const fast_skip_start = Math.floor(0.9 * trim_settings.start); // Skip 90% of the start time quickly but approximately,
+    const rest_skip_start = trim_settings.start - fast_skip_start; // then seek to the exact start time
+    command.unshift(`-ss`, format_ffmpeg_time(fast_skip_start));
+    command.push(`-ss`, format_ffmpeg_time(rest_skip_start));
+    command.push(`-t`, format_ffmpeg_time(trim_settings.end - trim_settings.start));
+}
+
 
 
 function add_video_settings(command: string[], x264_settings: x264ExportSettings): void {

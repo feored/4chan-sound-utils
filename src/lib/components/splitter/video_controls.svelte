@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Play, Pause, Square, Volume2, VolumeOff, Infinity, Repeat1 } from '@lucide/svelte';
-	import { type VideoData } from '$lib/components/splitter/splitter.svelte';
+	import { type VideoData } from '$lib/types';
 	import { format_ffmpeg_time, approximately_equal } from '$lib/utils/utils';
 
 	interface VideoControlsProps {
@@ -65,6 +65,15 @@
 				video_data.duration,
 				false
 			)}
+		</div>
+		<div class="timer-text flash attention">
+			[{format_ffmpeg_time(video_data.start_progress * video_data.duration, false)} : {format_ffmpeg_time(
+				video_data.end_progress * video_data.duration,
+				false
+			)}] ({format_ffmpeg_time(
+				(video_data.end_progress - video_data.start_progress) * video_data.duration,
+				false
+			)})
 		</div>
 	</div>
 	<div class="controls">
