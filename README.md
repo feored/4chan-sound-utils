@@ -5,8 +5,8 @@ Utilities for dealing with 4chan WebM files with `[sound=url]` audio in the file
 **Try it here: [https://feored.github.io/soundpost-tools](https://feored.github.io/soundpost-tools)**
 
 Everything is done client-side using [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm).
-The limitations are mostly speed and support for certain codecs (e.g VP9 seems to make the current version of ffmpeg-wasm hang every time, so the webm encoding option uses older, slower VP8 instead, same goes for opus codec, etc).
-
+The limitations are mostly speed and support for certain codecs (e.g VP9 seems to make the current version of ffmpeg-wasm hang every time, so the webm encoding option uses older, slower VP8 instead, it uses vorbis instead of opus codec, etc).
+It also seems to crash silently at the moment when uploading unsupported codecs (mostly AV1 so far).
 
 ##### Develop
 
