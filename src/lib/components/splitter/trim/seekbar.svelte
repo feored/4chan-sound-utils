@@ -7,9 +7,10 @@
 		on_seek?: (progress: number, preview?: boolean) => void;
 		on_start_seek?: (start: number, preview?: boolean) => void;
 		on_end_seek?: (end: number, preview?: boolean) => void;
+		on_release?: () => void;
 	};
 
-	let { video_data, on_seek, on_start_seek, on_end_seek }: SeekbarProps = $props();
+	let { video_data, on_seek, on_start_seek, on_end_seek, on_release }: SeekbarProps = $props();
 
 	let seekbar: HTMLDivElement | null = $state(null);
 </script>
@@ -22,6 +23,7 @@
 			{seekbar}
 			on_seek={on_start_seek}
 			duration={video_data.duration}
+			{on_release}
 		/>
 		<ProgressDrag
 			progress={video_data.end_progress ?? 100}
@@ -29,6 +31,7 @@
 			{seekbar}
 			on_seek={on_end_seek}
 			duration={video_data.duration}
+			{on_release}
 		/>
 		<ProgressDrag
 			progress={video_data.progress ?? 0}

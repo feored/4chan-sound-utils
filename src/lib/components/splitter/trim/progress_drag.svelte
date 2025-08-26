@@ -7,8 +7,9 @@
 		seek_type: 'handle' | 'left_bracket' | 'right_bracket';
 		seekbar: HTMLDivElement;
 		on_seek?: (progress: number, preview?: boolean) => void;
+		on_release?: () => void;
 	}
-	let { progress, seek_type, duration, seekbar, on_seek }: DraggableProps = $props();
+	let { progress, seek_type, duration, seekbar, on_seek, on_release }: DraggableProps = $props();
 
 	let dragging = $state(false);
 	let hovering = $state(false);
@@ -24,7 +25,7 @@
 		if (!dragging || !self || !seekbar) return;
 		dragging = false;
 		document.body.style.cursor = 'auto';
-		on_seek?.(progress);
+		on_release?.();
 	}
 
 	function onmousemove(event: MouseEvent) {

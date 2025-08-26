@@ -30,7 +30,7 @@
 	let current_file: File | null = $state(null);
 	let video: HTMLVideoElement | null = $state(null);
 	let video_data: VideoData = $state(default_video_data);
-	let last_seek_preview: boolean = $state(false); // if the last seek was previewing the image (not actually seeking to that time)
+	let previewing: boolean = $state(false);
 	const message_manager = new MessageManager();
 	const ffmpeg_manager = new FFmpegManager();
 	let current_state: 'ready' | 'loading' | 'finished' = $state('ready');
@@ -75,31 +75,27 @@
 		}
 	});
 
-	function on_start_seek(progress: number, preview = false) {
+	function on_start_seek(progress: number) {
 		video_data.start_progress = progress;
 		if (video_data.start_progress > video_data.end_progress) {
 			video_data.end_progress = video_data.start_progress + 0.05;
 		}
 		if (!video) return;
-		if (preview) {
-			video.currentTime = progress * video.duration;
-			last_seek_preview = true;
-		}
+		previewing = true;
+		video.currentTime = progress * video.duration;
 		if (video_data.progress < video_data.start_progress) {
 			video_data.progress = video_data.start_progress;
 		}
 	}
 
-	function on_end_seek(progress: number, preview = false) {
+	function on_end_seek(progress: number) {
 		video_data.end_progress = progress;
 		if (video_data.end_progress < video_data.start_progress) {
 			video_data.start_progress = video_data.end_progress - 0.05;
 		}
 		if (!video) return;
-		if (preview) {
-			video.currentTime = progress * video.duration;
-			last_seek_preview = true;
-		}
+		previewing = true;
+		video.currentTime = progress * video.duration;
 		if (video_data.progress > video_data.end_progress) {
 			video_data.progress = video_data.end_progress;
 		}
@@ -114,7 +110,6 @@
 			video_data.progress = video_data.end_progress;
 		}
 		video.currentTime = progress * video.duration;
-		last_seek_preview = false;
 	}
 
 	function ondurationchange() {
@@ -124,10 +119,7 @@
 
 	function ontimeupdate(_event: Event) {
 		if (!video) return;
-		if (last_seek_preview) {
-			last_seek_preview = false;
-			return;
-		}
+		if (previewing) return;
 		video_data.progress = video.currentTime / video.duration;
 		video_data.current_time = video.currentTime;
 		if (video_data.progress < video_data.start_progress - 0.01) {
@@ -141,6 +133,12 @@
 				video.currentTime = video_data.start_progress * video.duration;
 			}
 		}
+	}
+
+	function on_release() {
+		previewing = false;
+		if (!video) return;
+		video.currentTime = video_data.progress * video.duration;
 	}
 
 	// async function get_sound_extension(stream: Stream): Promise<string | null> {
@@ -296,7 +294,7 @@
 				<CanvasController {video} />
 			</div>
 			<section>
-				<Seekbar {video_data} {on_seek} {on_start_seek} {on_end_seek} />
+				<Seekbar {video_data} {on_seek} {on_start_seek} {on_end_seek} {on_release} />
 				<VideoControls {video} {video_data} />
 			</section>
 		</section>
