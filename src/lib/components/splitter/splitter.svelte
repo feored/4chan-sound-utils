@@ -34,7 +34,6 @@
 	const message_manager = new MessageManager();
 	const ffmpeg_manager = new FFmpegManager();
 	let current_state: 'ready' | 'loading' | 'finished' = $state('ready');
-	let upload_audio: boolean = $state(true);
 	let export_settings: ExportSettings = $state({
 		output_format: 'mp4',
 		settings: {
@@ -54,6 +53,8 @@
 		name: '',
 		blob: new Blob()
 	});
+
+	let audio_url: string = $state('');
 
 	onMount(() => {
 		// Default video ontimeupdate evemt fires too slowly, makes it choppy
@@ -157,30 +158,6 @@
 	// 	return utf8_decoder.decode(data_array).trim();
 	// }
 
-	async function upload_file(file: File): Promise<string | null> {
-		const form_data = new FormData();
-		form_data.append('reqtype', 'fileupload');
-		form_data.append('fileToUpload', file);
-		message_manager.log(`Uploading audio: ${file.name}...`);
-
-		try {
-			const response = await fetch('https://catbox.moe/user/api.php', {
-				method: 'POST',
-				// Set the FormData instance as the request body
-				body: form_data
-			});
-			if (!response.ok) {
-				throw new Error(`Status: ${response.status}`);
-			}
-			let resp = await response.text();
-			message_manager.log(resp, 'upload_audio_response');
-			return resp;
-		} catch (e) {
-			console.error(e);
-			return null;
-		}
-	}
-
 	async function split() {
 		message_manager.reset();
 		current_state = 'loading';
@@ -194,8 +171,6 @@
 			message_manager.error('No file selected.');
 			return;
 		}
-		let final_audio_url = '';
-
 		const audio_stream = await extract(
 			ffmpeg,
 			{
@@ -224,15 +199,6 @@
 			name: 'sound.ogg',
 			blob: audio_stream
 		};
-		if (upload_audio) {
-			let audio_url = await upload_file(new File([audio_stream], 'extracted_audio.ogg'));
-			//let audio_url = 'https://files.catbox.moe/ijpeep.mp3';
-			if (!audio_url) {
-				message_manager.error('Failed to upload audio file.');
-				return;
-			}
-			final_audio_url = encodeURIComponent(audio_url);
-		}
 		const crop = get_crop();
 		if (crop) {
 			export_settings.crop = crop;
@@ -261,9 +227,7 @@
 			message_manager.error('Failed to process video file.');
 			return;
 		}
-		const filename =
-			current_file.name.replace(/\.[^/.]+$/, '') +
-			(final_audio_url ? `[sound=${final_audio_url}]` : '');
+		const filename = current_file.name.replace(/\.[^/.]+$/, '');
 		export_result = {
 			name: filename,
 			blob: video_blob
@@ -271,9 +235,15 @@
 		message_manager.log('Audio and video split successfully.');
 		message_manager.log(`Final video: ${export_result.name} (${export_result.blob.size} bytes)`);
 		current_state = 'finished';
+	}
 
-		//let extension = await get_sound_extension({ name: current_file.name, blob: current_file });
-		//console.log('Sound extension:', extension);
+	function get_complete_filename(): string {
+		try {
+			new URL(audio_url);
+			return `${export_result.name}[sound=${encodeURIComponent(audio_url)}].${export_settings.output_format}`;
+		} catch (_) {
+			return `${export_result.name}.${export_settings.output_format}`;
+		}
 	}
 </script>
 
@@ -298,12 +268,6 @@
 				<VideoControls {video} {video_data} />
 			</section>
 		</section>
-		<div class="flash bd-muted">
-			<label>
-				<input type="checkbox" name="upload_audio" bind:checked={upload_audio} />
-				Upload audio file to catbox.moe
-			</label>
-		</div>
 		{#if get_crop().width > 2048 || get_crop().height > 2048}
 			<div class="flash accent">
 				<p>
@@ -324,28 +288,40 @@
 		<Log {message_manager} {ffmpeg_manager} />
 		{#if current_state === 'finished'}
 			<div class="flash bd-muted">
+				<p><b>Extracted audio</b></p>
+				<audio src={URL.createObjectURL(extracted_audio.blob)} controls />
+				<div class="flash muted">
+					<p>
+						Optional: Upload the audio file to a hosting service and paste the link here to generate
+						the video filename with [sound=URL] tag.
+					</p>
+					<input type="text" placeholder="https://example.com/sound.ogg" bind:value={audio_url} />
+				</div>
 				<p><b>Video result</b></p>
 				<video src={URL.createObjectURL(export_result.blob)} controls />
-
-				<a
-					href={URL.createObjectURL(export_result.blob)}
-					download={`${export_result.name}.${export_settings.output_format}`}
-					title="Download processedvideo"><button>Download</button></a
-				>
-			</div>
-			<div class="flash bd-muted">
-				{#if upload_audio}
-					<p>Filename: <code>{export_result.name}.{export_settings.output_format}</code></p>
-					<p>
-						<small
-							>Some browsers won't let you download files that contain '%' in the name. In that
-							case, please copy and paste this filename.</small
-						>
-					</p>
-				{:else}
-					<p><b>Extracted audio</b></p>
-					<audio src={URL.createObjectURL(extracted_audio.blob)} controls />
+				{#if audio_url != ''}
+					<div class="flash muted">
+						<p>Complete filename</p>
+						<div class="flex" style="gap:1rem">
+							<input type="text" value={get_complete_filename()} />
+							<input
+								type="button"
+								style="flex-basis:max-content"
+								onclick={() => {
+									navigator.clipboard.writeText(get_complete_filename());
+								}}
+								value="Copy"
+							/>
+						</div>
+					</div>
 				{/if}
+				<p>
+					<a
+						href={URL.createObjectURL(export_result.blob)}
+						download={get_complete_filename()}
+						title="Download processed video"><button>Download</button></a
+					>
+				</p>
 			</div>
 		{/if}
 	{/if}
@@ -353,10 +329,10 @@
 	<div class="flash bg-muted bd-muted">
 		<p><b class="default">Instructions</b></p>
 		<p>
-			Upload a video, trim it and crop it.<br />This tool will then split the audio and video into
+			Upload a video, trim it and crop it.<br />Click on 'split' to split the audio and video into
 			separate files.<br />
-			The audio file will automatically be uploaded to one of several hosts, with the URL embedded in
-			the video's filename.
+			The video file will be resized to fit within the 2048x2048 requirements if it's too large.<br
+			/>
 		</p>
 	</div>
 {/if}

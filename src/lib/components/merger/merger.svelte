@@ -140,10 +140,12 @@
 	<div class="flash bg-muted bd-muted">
 		<p><b>Instructions</b></p>
 		<p>
-			Upload a .webm file containing a [sound=URL] link in the filename.<br />
+			Upload a video file containing a [sound=URL] link in the filename.<br />
 			Example: <code> video[sound=https://example.com/sound.mp3].webm</code><br /> This tool
-			downloads the linked sound file and merges it back into the video file for easy viewing.<br
-			/>This is also useful for archival in case the file hosts go down.
+			downloads the linked sound file and merges it back into the video file using ffmpeg-wasm,
+			entirely client-side<br />
+			This is useful for archival in case the file host goes down, or just to view the combined file
+			locally.
 		</p>
 	</div>
 {/if}

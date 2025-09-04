@@ -4,8 +4,8 @@
 	import Dialog from '$lib/components/dialog.svelte';
 
 	const tabs = [
-		{ name: 'splitter', component: Splitter, label: 'WebM Maker' },
-		{ name: 'merger', component: Merger, label: 'WebM Merger' }
+		{ name: 'splitter', component: Splitter, label: 'Soundpost Maker' },
+		{ name: 'merger', component: Merger, label: 'Soundpost Merger' }
 	];
 
 	let current_page = $state('splitter');
